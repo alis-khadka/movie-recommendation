@@ -1,0 +1,8 @@
+fastapi==0.115.12
+uvicorn==0.29.0
+pandas==2.2.1
+scikit-learn==1.4.2
+sentence-transformers==2.6.1
+numpy==1.26.4
+google-genai==1.11.0
+python-dotenv==1.1.0
