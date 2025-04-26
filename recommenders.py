@@ -15,14 +15,26 @@ def extract_features(prompt: str) -> dict:
     """Hybrid feature extraction with pretrained models and rules"""
     doc = nlp(prompt.lower())
 
-    # Rule-based genre detection
+    # Rule-based genre detection using direct keyword-to-genre mapping
     detected_genres = []
     prompt_lower = prompt.lower()
-    for genre, keywords in config.GENRE_MAPPING.items():
-        if any(keyword in prompt_lower for keyword in keywords):
-            detected_genres.append(genre)
+    prompt_words = prompt_lower.split()
+
+    # Direct lookup for single word keywords
+    for word in prompt_words:
+        if word in config.KEYWORD_TO_GENRE:
+            detected_genres.append(config.KEYWORD_TO_GENRE[word])
+
+    # Check for multi-word keywords
+    for keyword in config.KEYWORD_TO_GENRE:
+        if " " in keyword and keyword in prompt_lower:
+            detected_genres.append(config.KEYWORD_TO_GENRE[keyword])
+
+    # Also detect the genre name directly if mentioned
+    for genre in config.GENRE_MAPPING:
         if genre in prompt_lower.split():
             detected_genres.append(genre)
+
     detected_genres = list(set(detected_genres))
 
     # KeyBERT keyword extraction
