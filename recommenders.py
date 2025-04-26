@@ -70,9 +70,11 @@ def get_keyword_recommendations(prompt: str, top_n=10):
             "No relevant features extracted. Returning top rated movies based on Bayesian Average."
         )
         # Return top N based on precalculated Bayesian average
-        return movies_tfidf_df.nlargest(top_n, "bayesian_avg")[
+        top_rated = movies_tfidf_df.nlargest(top_n, "bayesian_avg")[
             ["title", "genres", "bayesian_avg"]
-        ].assign(
+        ].copy()
+        top_rated["genres"] = top_rated["genres"].apply(lambda x: x.split("|"))
+        return top_rated.assign(
             similarity_score=0.0
         )  # Assign 0 similarity for this case
 
@@ -85,6 +87,10 @@ def get_keyword_recommendations(prompt: str, top_n=10):
     # Get the corresponding movie data
     top_recommendations = movies_tfidf_df.iloc[similar_indices].copy()
     top_recommendations["similarity_score"] = similarities[similar_indices]
+    # Convert genres string to list
+    top_recommendations["genres"] = top_recommendations["genres"].apply(
+        lambda x: x.split("|")
+    )
 
     logger.info(
         f"Returning {len(top_recommendations)} recommendations based on similarity."
