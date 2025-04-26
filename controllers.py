@@ -3,13 +3,24 @@ from sklearn.metrics.pairwise import cosine_similarity
 import traceback
 from fastapi import HTTPException
 import logging
+import time
+from google.api_core import exceptions as api_exceptions
 
 from schemas import LLMQuery, RecommendationQuery
-from data_processing import movies_llm_df, embeddings_matrix
+from data_processing import movies_llm_df, get_embeddings_matrix
 from models import gemini_client, embed_model
 from recommenders import get_keyword_recommendations
 
 logger = logging.getLogger(__name__)
+
+# --- Add logging right after import ---
+logger.info(f"DataFrame movies_llm_df loaded. Info:")
+logger.info(movies_llm_df.info())
+logger.info(f"First 5 rows of genres:\n{movies_llm_df['genres'].head()}")
+logger.info(f"First 5 rows of tags:\n{movies_llm_df['tag'].head()}")
+logger.info(f"Data type of 'genres' column: {movies_llm_df['genres'].dtype}")
+logger.info(f"Data type of 'tag' column: {movies_llm_df['tag'].dtype}")
+# --- End of added logging ---
 
 
 def generate_llm_recommendations(query: LLMQuery):
@@ -20,6 +31,9 @@ def generate_llm_recommendations(query: LLMQuery):
             # Use query.top_n for logging
             f"Processing input: {query.user_input}, top_n: {query.top_n}"
         )
+
+        # Get embeddings matrix only when needed
+        embeddings_matrix = get_embeddings_matrix()
 
         query_vec = embed_model.encode(query.user_input)
         similarities = cosine_similarity([query_vec], embeddings_matrix)[0]
@@ -58,14 +72,43 @@ courtroom drama|twist ending
 
 """
         logger.info("Sending prompt to Gemini...")
-        response = gemini_client.models.generate_content(
-            model="models/gemini-2.0-flash",
-            contents=prompt,
-            config={
-                "temperature": 0,
-                "system_instruction": "You are a helpful movie assistant. Your response should not include any extra information, explanation or pretext.",
-            },
-        )
+
+        # Add retry logic for API calls
+        max_retries = 3
+        retry_delay = 1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                response = gemini_client.models.generate_content(
+                    model="models/gemini-2.0-flash",
+                    contents=prompt,
+                    config={
+                        "temperature": 0,
+                        "system_instruction": "You are a helpful movie assistant. Your response should not include any extra information, explanation or pretext.",
+                    },
+                )
+                break  # If successful, break out of retry loop
+            except (
+                api_exceptions.ResourceExhausted,
+                api_exceptions.ServiceUnavailable,
+            ) as e:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"Gemini API error: {e}. Retrying in {retry_delay}s (attempt {attempt+1}/{max_retries})"
+                    )
+                    time.sleep(retry_delay * (2**attempt))  # Exponential backoff
+                else:
+                    logger.error(f"Gemini API failed after {max_retries} attempts: {e}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"External AI service temporarily unavailable. Please try again later.",
+                    )
+            except Exception as e:
+                logger.error(f"Unexpected error calling Gemini API: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error communicating with recommendation service: {str(e)}",
+                )
 
         recommendation_text = ""
         try:
@@ -117,16 +160,45 @@ courtroom drama|twist ending
                         {"title": title, "genres": genres, "tags": []}
                     )
 
-        candidates_output = [
-            {
-                "title": row["title"],
-                "genres": (
-                    list(row["genres"]) if isinstance(row["genres"], list) else []
-                ),
-                "tags": list(row["tag"]) if isinstance(row["tag"], list) else [],
-            }
-            for _, row in top_movies.iterrows()
-        ]
+        candidates_output = []
+        for _, row in top_movies.iterrows():
+            title = row.get("title", "Unknown Title")  # Safer title access
+
+            # Process Genres
+            raw_genres = row.get("genres")  # Get raw value first
+            if isinstance(raw_genres, list):
+                # Handle the specific [''] case which resulted from split('|') on an empty string during data processing
+                if raw_genres == [""]:
+                    genres = []
+                else:
+                    genres = (
+                        raw_genres  # It's a valid list (or potentially empty list [])
+                    )
+            else:
+                # Handle NaN, None, or other non-list types
+                genres = []
+
+            # Process Tags (using the 'tag' column from the DataFrame)
+            raw_tags = row.get("tag")  # Get raw value from 'tag' column
+            if isinstance(raw_tags, list):
+                # Assuming tags don't have the [''] issue like genres might
+                tags = raw_tags  # It's a valid list (or potentially empty list [])
+            else:
+                # Handle NaN, None, or other non-list types
+                tags = []
+
+            # Add debug logging to inspect values
+            logger.info(
+                f"Processing candidate: {title}, Raw Genres: {raw_genres}, Processed Genres: {genres}, Raw Tags: {raw_tags}, Processed Tags: {tags}"
+            )
+
+            candidates_output.append(
+                {
+                    "title": title,
+                    "genres": genres,  # Use the processed genres list
+                    "tags": tags,  # Use the processed tags list (output key is 'tags')
+                }
+            )
 
         return {
             "user_input": query.user_input,
@@ -135,6 +207,9 @@ courtroom drama|twist ending
             "candidates": candidates_output,
         }
 
+    except HTTPException as http_exc:
+        # Re-raise HTTP exceptions without modification
+        raise http_exc
     except Exception as e:
         logger.exception(f"Error in LLM controller: {e}")
         traceback.print_exc()
@@ -148,14 +223,21 @@ def handle_recommendation_request(query: RecommendationQuery):
     """Handles the logic for generating keyword-based recommendations."""
     try:
         logger.info(f"--- Inside Keyword Controller Logic ---")
+        # Use 'prompt' field from RecommendationQuery schema instead of 'query'
         logger.info(f"Processing input: {query.prompt}, top_n: {query.top_n}")
+
+        # Pass the user query to the keyword recommender
         recommendations_df = get_keyword_recommendations(query.prompt, query.top_n)
-        return recommendations_df.to_dict(orient="records")
+
+        return {
+            "query": query.prompt,
+            "recommendations": recommendations_df.to_dict(orient="records"),
+        }
     except Exception as e:
-        logger.exception(f"Error in Keyword controller: {e}")
+        logger.exception(f"Error in keyword controller: {e}")
         traceback.print_exc()
         # Re-raise as HTTPException for the router to catch
         raise HTTPException(
             status_code=500,
-            detail=f"An internal error occurred in Keyword logic: {str(e)}",
+            detail=f"An internal error occurred in keyword recommendation logic: {str(e)}",
         )
