@@ -17,12 +17,14 @@ def generate_llm_recommendations(query: LLMQuery):
     try:
         logger.info(f"--- Inside LLM Controller Logic ---")
         logger.info(
-            f"Processing input: {query.user_input}, top_n_candidates: {query.top_n_candidates}"
+            # Use query.top_n for logging
+            f"Processing input: {query.user_input}, top_n: {query.top_n}"
         )
 
         query_vec = embed_model.encode(query.user_input)
         similarities = cosine_similarity([query_vec], embeddings_matrix)[0]
-        num_candidates = min(query.top_n_candidates, len(movies_llm_df))
+        # Use query.top_n to fetch candidates
+        num_candidates = min(query.top_n, len(movies_llm_df))
         top_indices = np.argsort(similarities)[::-1][:num_candidates]
         top_movies = movies_llm_df.iloc[top_indices]
         logger.info(f"Found {len(top_movies)} candidates based on similarity.")
@@ -36,20 +38,33 @@ def generate_llm_recommendations(query: LLMQuery):
         )
 
         prompt = f"""
-You are a helpful movie assistant. Recommend only from the list below based on the user's preferences.
+User input: {query.user_input}
 
-User Input: "{query.user_input}"
+Please recommend the {query.top_n} most relevant movies from along with their genres and tags only included in the movielens dataset (small). The response should be in the following format and don't include any extra information:
 
-Available Movies:
-{movie_list}
+Movie Title
+Genres
+Tags
 
-Please recommend the 2–3 most relevant movies and explain why.
+Examples:
+
+Bag Man, The (2014)
+Crime|Drama|Thriller
+mystery
+
+Fracture (2007)
+Crime|Drama|Mystery|Thriller
+courtroom drama|twist ending
+
 """
         logger.info("Sending prompt to Gemini...")
-        # Updated Gemini API call and model name to match original snippet
         response = gemini_client.models.generate_content(
-            model="models/gemini-1.5-flash-latest",  # Using the model from the original snippet
+            model="models/gemini-2.0-flash",
             contents=prompt,
+            config={
+                "temperature": 0,
+                "system_instruction": "You are a helpful movie assistant. Your response should not include any extra information, explanation or pretext.",
+            },
         )
 
         recommendation_text = ""
@@ -70,6 +85,38 @@ Please recommend the 2–3 most relevant movies and explain why.
             logger.error(f"Full Gemini Response object: {response}")
             recommendation_text = "Could not generate recommendations from the LLM."
 
+        # Parse the recommendation text
+        parsed_recommendations = []
+        if recommendation_text and "Could not" not in recommendation_text:
+            movie_blocks = recommendation_text.strip().split("\n\n")
+            for block in movie_blocks:
+                lines = block.strip().split("\n")
+                if len(lines) >= 3:
+                    title = lines[0].strip()
+                    genres = (
+                        [g.strip() for g in lines[1].split("|")]
+                        if "|" in lines[1]
+                        else [lines[1].strip()]
+                    )
+                    tags = (
+                        [t.strip() for t in lines[2].split("|")]
+                        if "|" in lines[2]
+                        else [lines[2].strip()]
+                    )
+                    parsed_recommendations.append(
+                        {"title": title, "genres": genres, "tags": tags}
+                    )
+                elif len(lines) == 2:  # Handle cases with missing tags maybe?
+                    title = lines[0].strip()
+                    genres = (
+                        [g.strip() for g in lines[1].split("|")]
+                        if "|" in lines[1]
+                        else [lines[1].strip()]
+                    )
+                    parsed_recommendations.append(
+                        {"title": title, "genres": genres, "tags": []}
+                    )
+
         candidates_output = [
             {
                 "title": row["title"],
@@ -83,7 +130,8 @@ Please recommend the 2–3 most relevant movies and explain why.
 
         return {
             "user_input": query.user_input,
-            "recommendations": recommendation_text,
+            "raw_recommendations": recommendation_text,  # Renamed for clarity
+            "parsed_recommendations": parsed_recommendations,
             "candidates": candidates_output,
         }
 
