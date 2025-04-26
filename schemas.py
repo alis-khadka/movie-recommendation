@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class LLMQuery(BaseModel):
     user_input: str
-    top_n_candidates: int = 5  # How many candidates to feed to the LLM
+    top_n: int = 10  # How many candidates to retrieve for the LLM
 
 
 class RecommendationQuery(BaseModel):
