@@ -9,7 +9,7 @@ from google.api_core import exceptions as api_exceptions
 from schemas import LLMQuery, RecommendationQuery
 from data_processing import movies_llm_df, get_embeddings_matrix
 from models import gemini_client, embed_model
-from recommenders import get_keyword_recommendations
+from recommenders import get_keyword_recommendations, get_enhanced_recommendations
 
 logger = logging.getLogger(__name__)
 
@@ -226,8 +226,8 @@ def handle_recommendation_request(query: RecommendationQuery):
         # Use 'prompt' field from RecommendationQuery schema instead of 'query'
         logger.info(f"Processing input: {query.prompt}, top_n: {query.top_n}")
 
-        # Pass the user query to the keyword recommender
-        recommendations_df = get_keyword_recommendations(query.prompt, query.top_n)
+        # Use the enhanced recommendation function that includes entity matching
+        recommendations_df = get_enhanced_recommendations(query.prompt, query.top_n)
 
         return {
             "query": query.prompt,
