@@ -1,6 +1,5 @@
 import os
 import sys
-import spacy
 import uvicorn
 import logging
 import subprocess
@@ -21,37 +20,8 @@ logger = logging.getLogger(__name__)
 # --- Prerequisite Checks ---
 
 
-def check_and_download_spacy_model(model_name):
-    """Checks if a SpaCy model is installed and downloads it if not."""
-    try:
-        spacy.load(model_name)
-        logger.info(f"SpaCy model '{model_name}' already installed.")
-    except OSError:
-        logger.warning(f"SpaCy model '{model_name}' not found. Attempting download...")
-        try:
-            subprocess.check_call(
-                [sys.executable, "-m", "spacy", "download", model_name]
-            )
-            logger.info(
-                f"Successfully downloaded '{model_name}'. Please restart the script if needed."
-            )
-            spacy.load(model_name)  # Try loading again
-        except subprocess.CalledProcessError:
-            logger.error(f"ERROR: Failed to download SpaCy model '{model_name}'.")
-            logger.error(
-                f"Please install it manually: python -m spacy download {model_name}"
-            )
-            sys.exit(1)
-        except Exception as e:
-            logger.exception(
-                f"An unexpected error occurred during SpaCy model download: {e}"
-            )
-            sys.exit(1)
-
-
-def run_prerequisite_checks():
-    """Runs all prerequisite checks before starting the application."""
-    logger.info("Running prerequisite checks...")
+def check_environment_variables():
+    """Checks if required environment variables are set."""
     load_dotenv()
 
     # Check for Gemini API Key
@@ -61,7 +31,9 @@ def run_prerequisite_checks():
     else:
         logger.info("GEMINI_API_KEY found.")
 
-    # Check for essential dataset files
+
+def check_required_files():
+    """Checks if required dataset files exist."""
     required_files = [config.MOVIES_CSV, config.RATINGS_CSV, config.TAGS_CSV]
     all_files_found = True
     for file_path in required_files:
@@ -69,13 +41,22 @@ def run_prerequisite_checks():
             logger.error(f"Error: Required data file not found: {file_path}")
             logger.error(f"Expected location: {os.path.abspath(file_path)}")
             all_files_found = False
+
     if not all_files_found:
         sys.exit(1)
     else:
         logger.info("All required data files found.")
 
-    # Perform SpaCy model check
-    check_and_download_spacy_model(config.SPACY_MODEL_NAME)
+
+def run_prerequisite_checks():
+    """Runs all prerequisite checks before starting the application."""
+    logger.info("Running prerequisite checks...")
+
+    check_environment_variables()
+    check_required_files()
+
+    # Note: Spacy model check is now handled in models.py
+    # to avoid duplication of logic
 
     logger.info("Prerequisite checks passed.")
 
@@ -91,6 +72,15 @@ app = FastAPI(
 )
 
 app.include_router(router)
+
+# Add CORS middleware to allow cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 if __name__ == "__main__":
     logger.info("Starting Uvicorn server directly (for development)...")
