@@ -190,18 +190,8 @@ courtroom drama|twist ending
                 # Handle NaN, None, or other non-list types
                 tags = []
 
-            # Get the rating if available
-            rating = None
-            if "rating" in row:
-                rating = float(row["rating"])
-            elif "bayesian_avg" in row:
-                rating = float(row["bayesian_avg"])
-
-            if rating is not None:
-                rating = round(rating, 1)  # Round to 1 decimal place
-
             # Add debug logging to inspect values
-            logger.info(
+            logger.debug(
                 f"Processing candidate: {title}, Raw Genres: {raw_genres}, Processed Genres: {genres}, Raw Tags: {raw_tags}, Processed Tags: {tags}"
             )
 
@@ -210,21 +200,8 @@ courtroom drama|twist ending
                     "title": title,
                     "genres": genres,  # Use the processed genres list
                     "tags": tags,  # Use the processed tags list (output key is 'tags')
-                    "rating": rating,  # Include rating if available
                 }
             )
-
-        # For parsed recommendations, try to find corresponding rating from candidates
-        for rec in parsed_recommendations:
-            rec_title = rec["title"]
-            # Find matching candidate by title to get rating
-            for candidate in candidates_output:
-                if (
-                    rec_title.lower() in candidate["title"].lower()
-                    or candidate["title"].lower() in rec_title.lower()
-                ):
-                    rec["rating"] = candidate.get("rating")
-                    break
 
         return {
             "user_input": query.user_input,
@@ -258,9 +235,6 @@ def handle_recommendation_request(query: RecommendationQuery):
                     "movieId": int(row["movieId"]),
                     "title": row["title"],
                     "genres": row["genres"],
-                    "rating": round(
-                        float(row["bayesian_avg"]), 1
-                    ),  # Include Bayesian average rating rounded to 1 decimal
                     "similarity_score": float(row["similarity_score"]),
                 }
             )
@@ -594,28 +568,6 @@ courtroom drama|twist ending"""
                             "similarity_score": 1.0,
                         }
                     )
-
-        # Try to add ratings to the recommendations
-        # First check if the title exists in the movies_tfidf_df DataFrame to get the ratings
-        from data_processing import movies_tfidf_df
-
-        # Add ratings to recommendations
-        for rec in parsed_recommendations:
-            title_to_check = rec["title"]
-            # Try to find a match in movies_tfidf_df using partial title matching
-            matching_rows = movies_tfidf_df[
-                movies_tfidf_df["title"].str.contains(
-                    title_to_check, case=False, regex=False
-                )
-            ]
-
-            if not matching_rows.empty:
-                # Get the rating from the first match
-                rating = float(matching_rows.iloc[0]["bayesian_avg"])
-                rec["rating"] = round(rating, 1)  # Round to 1 decimal place
-            else:
-                # If no match found, set a default rating
-                rec["rating"] = None
 
         return {
             "query": query.prompt,
