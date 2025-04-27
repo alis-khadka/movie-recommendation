@@ -106,6 +106,40 @@ def extract_year_reference(entities, entity_types):
     return None
 
 
+def parse_rating_reference(prompt: str):
+    """
+    Parse rating references from the prompt like "5 star movies", "highly rated",
+    "top rated", "4.5 rating", etc.
+    Returns a minimum rating threshold (float between 0-5) if found, otherwise None.
+    """
+    # Check for explicit star ratings (e.g., "5 star", "4.5 rated")
+    explicit_rating = re.search(
+        r"(\d+\.?\d*)\s*(?:star|stars|rated|rating)", prompt.lower()
+    )
+    if explicit_rating:
+        rating = float(explicit_rating.group(1))
+        # Ensure rating is within the valid range (0-5)
+        if 0 <= rating <= 5:
+            return rating
+
+    # Check for descriptive terms
+    if re.search(
+        r"\b(?:top|highest|best|highly)\s+(?:rated|acclaimed|reviewed)\b",
+        prompt.lower(),
+    ):
+        return 4.5  # Very high threshold for "top rated", "highly acclaimed", etc.
+    elif re.search(
+        r"\b(?:well|good|great)\s+(?:rated|reviewed|acclaimed)\b", prompt.lower()
+    ):
+        return 4.0  # High threshold for "well rated", etc.
+    elif re.search(
+        r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b", prompt.lower()
+    ):
+        return None  # We'll handle low rated movies separately
+
+    return None
+
+
 def extract_features(prompt: str) -> dict:
     """Hybrid feature extraction with pretrained models and rules"""
     doc = nlp(prompt.lower())
@@ -249,7 +283,22 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
     # Use either decade range or specific year range for filtering
     date_filter_range = decade_range or year_range
 
-    # Get standard TF-IDF recommendations (date filtering already applied)
+    # Check for rating reference
+    rating_threshold = parse_rating_reference(prompt)
+    is_low_rating_query = (
+        re.search(
+            r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
+            prompt.lower(),
+        )
+        is not None
+    )
+
+    if rating_threshold:
+        logger.info(f"Detected rating threshold: {rating_threshold}")
+    elif is_low_rating_query:
+        logger.info("Detected request for low rated movies")
+
+    # Get standard TF-IDF recommendations (date & rating filtering already applied)
     tfidf_recommendations = get_keyword_recommendations(prompt, top_n=top_n)
 
     # Get entity-based matches
@@ -272,6 +321,26 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
         entity_matches = filtered_entity_matches
         logger.info(
             f"After date filtering, {len(entity_matches)} entity matches remain"
+        )
+
+    # Filter entity matches by rating if needed
+    if rating_threshold or is_low_rating_query:
+        filtered_entity_matches = []
+
+        for match in entity_matches:
+            movie_data = movies_tfidf_df[movies_tfidf_df["movieId"] == match["movieId"]]
+
+            if len(movie_data) > 0:
+                bayesian_avg = movie_data["bayesian_avg"].values[0]
+
+                if rating_threshold and bayesian_avg >= rating_threshold:
+                    filtered_entity_matches.append(match)
+                elif is_low_rating_query and 2.0 <= bayesian_avg <= 3.5:
+                    filtered_entity_matches.append(match)
+
+        entity_matches = filtered_entity_matches
+        logger.info(
+            f"After rating filtering, {len(entity_matches)} entity matches remain"
         )
 
     # If we have entity matches, boost those recommendations
@@ -314,10 +383,17 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
                     match_row, ignore_index=True
                 )
 
-            # Re-sort by similarity score
-            tfidf_recommendations = tfidf_recommendations.sort_values(
-                by="similarity_score", ascending=False
-            ).head(top_n)
+            # Re-sort by similarity score or rating as appropriate
+            if is_low_rating_query:
+                # For low rated movies, prioritize by similarity then by lowest rating
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by=["similarity_score", "bayesian_avg"], ascending=[False, True]
+                ).head(top_n)
+            else:
+                # Default sorting by similarity score
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by="similarity_score", ascending=False
+                ).head(top_n)
 
     logger.info(f"Returning {len(tfidf_recommendations)} recommendations.")
     return tfidf_recommendations
@@ -350,14 +426,35 @@ def get_keyword_recommendations(prompt: str, top_n=10):
     # Use either decade range or specific year range for filtering
     date_filter_range = decade_range or year_range
 
+    # Check for rating reference
+    rating_threshold = parse_rating_reference(prompt)
+    is_low_rating_query = (
+        re.search(
+            r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
+            prompt.lower(),
+        )
+        is not None
+    )
+
+    if rating_threshold:
+        logger.info(f"Detected rating threshold: {rating_threshold}")
+    elif is_low_rating_query:
+        logger.info("Detected request for low rated movies")
+
     if not features["processed_text"]:
         logger.warning(
             "No relevant features extracted. Returning top rated movies based on Bayesian Average."
         )
         # Return top N based on precalculated Bayesian average
-        top_rated = movies_tfidf_df.nlargest(top_n, "bayesian_avg")[
-            ["movieId", "title", "genres", "bayesian_avg"]
-        ].copy()
+        if is_low_rating_query:
+            # For low rated movies, sort in ascending order
+            top_rated = movies_tfidf_df.nsmallest(top_n, "bayesian_avg")[
+                ["movieId", "title", "genres", "bayesian_avg"]
+            ].copy()
+        else:
+            top_rated = movies_tfidf_df.nlargest(top_n, "bayesian_avg")[
+                ["movieId", "title", "genres", "bayesian_avg"]
+            ].copy()
 
         # Apply date filter if specified
         if date_filter_range:
@@ -373,9 +470,14 @@ def get_keyword_recommendations(prompt: str, top_n=10):
             # If filtering resulted in too few movies, get more from the original set
             if len(top_rated) < top_n:
                 remaining = top_n - len(top_rated)
-                more_movies = movies_tfidf_df.nlargest(top_n * 3, "bayesian_avg")[
-                    ["movieId", "title", "genres", "bayesian_avg"]
-                ].copy()
+                if is_low_rating_query:
+                    more_movies = movies_tfidf_df.nsmallest(top_n * 3, "bayesian_avg")[
+                        ["movieId", "title", "genres", "bayesian_avg"]
+                    ].copy()
+                else:
+                    more_movies = movies_tfidf_df.nlargest(top_n * 3, "bayesian_avg")[
+                        ["movieId", "title", "genres", "bayesian_avg"]
+                    ].copy()
                 more_movies["year"] = (
                     more_movies["title"].str.extract(r"\((\d{4})\)").astype("float")
                 )
@@ -397,9 +499,14 @@ def get_keyword_recommendations(prompt: str, top_n=10):
     similarities = cosine_similarity(prompt_vector, tfidf_feature_matrix).flatten()
 
     # Get top matches based purely on similarity (get more than needed for filtering)
+    filter_multiplier = 1
     if date_filter_range:
-        top_n_multiplier = 5  # Get 5x more results to allow for filtering
-        similar_indices = np.argsort(similarities)[::-1][: top_n * top_n_multiplier]
+        filter_multiplier *= 5  # Get 5x more results to allow for filtering
+    if rating_threshold or is_low_rating_query:
+        filter_multiplier *= 5  # Get 5x more results to allow for rating filtering
+
+    if filter_multiplier > 1:
+        similar_indices = np.argsort(similarities)[::-1][: top_n * filter_multiplier]
     else:
         similar_indices = np.argsort(similarities)[::-1][:top_n]
 
@@ -419,8 +526,27 @@ def get_keyword_recommendations(prompt: str, top_n=10):
             (top_recommendations["year"] >= start_year)
             & (top_recommendations["year"] <= end_year)
         ]
-        # Keep only top_n after filtering
-        top_recommendations = top_recommendations.head(top_n)
+
+    # Apply rating filter if specified
+    if rating_threshold:
+        # Filter for movies with ratings at or above the threshold
+        top_recommendations = top_recommendations[
+            top_recommendations["bayesian_avg"] >= rating_threshold
+        ]
+    elif is_low_rating_query:
+        # For low rated movies, prioritize movies with lower ratings
+        # But don't include movies with extremely low ratings (below 2.0) which might be too bad
+        top_recommendations = top_recommendations[
+            (top_recommendations["bayesian_avg"] >= 2.0)
+            & (top_recommendations["bayesian_avg"] <= 3.5)
+        ]
+        # Sort by rating ascending (worst first)
+        top_recommendations = top_recommendations.sort_values(
+            by=["similarity_score", "bayesian_avg"], ascending=[False, True]
+        )
+
+    # Keep only top_n after all filtering
+    top_recommendations = top_recommendations.head(top_n)
 
     # Convert genres string to list
     top_recommendations["genres"] = top_recommendations["genres"].apply(

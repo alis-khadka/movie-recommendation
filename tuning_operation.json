@@ -1,0 +1,954 @@
+{
+  "name": "tunedModels/movierecommender2-rr5j3ujws1ex/operations/hik4nlqxwf7y",
+  "metadata": {
+    "@type": "type.googleapis.com/google.ai.generativelanguage.v1beta.CreateTunedModelMetadata",
+    "totalSteps": 79,
+    "completedSteps": 79,
+    "completedPercent": 100,
+    "snapshots": [
+      {
+        "step": 1,
+        "meanLoss": 228.2576,
+        "computeTime": "2025-04-26T22:56:44.706685454Z"
+      },
+      {
+        "step": 2,
+        "meanLoss": 219.2776,
+        "computeTime": "2025-04-26T22:56:47.001412055Z"
+      },
+      {
+        "step": 3,
+        "meanLoss": 243.3371,
+        "computeTime": "2025-04-26T22:56:49.307040750Z"
+      },
+      {
+        "step": 4,
+        "meanLoss": 248.55962,
+        "computeTime": "2025-04-26T22:56:51.573079381Z"
+      },
+      {
+        "step": 5,
+        "meanLoss": 171.19724,
+        "computeTime": "2025-04-26T22:56:53.855001288Z"
+      },
+      {
+        "step": 6,
+        "meanLoss": 198.50583,
+        "computeTime": "2025-04-26T22:56:56.173735586Z"
+      },
+      {
+        "step": 7,
+        "meanLoss": 166.24371,
+        "computeTime": "2025-04-26T22:56:58.440035837Z"
+      },
+      {
+        "step": 8,
+        "meanLoss": 185.09444,
+        "computeTime": "2025-04-26T22:57:00.756843223Z"
+      },
+      {
+        "step": 9,
+        "meanLoss": 180.38058,
+        "computeTime": "2025-04-26T22:57:03.045808331Z"
+      },
+      {
+        "step": 10,
+        "meanLoss": 134.95549,
+        "computeTime": "2025-04-26T22:57:05.321888907Z"
+      },
+      {
+        "step": 11,
+        "meanLoss": 189.45224,
+        "computeTime": "2025-04-26T22:57:07.537690100Z"
+      },
+      {
+        "step": 12,
+        "meanLoss": 95.75697,
+        "computeTime": "2025-04-26T22:57:09.765553884Z"
+      },
+      {
+        "step": 13,
+        "meanLoss": 134.59015,
+        "computeTime": "2025-04-26T22:57:12.037333701Z"
+      },
+      {
+        "step": 14,
+        "meanLoss": 346.88,
+        "computeTime": "2025-04-26T22:57:14.267522832Z"
+      },
+      {
+        "step": 15,
+        "meanLoss": 203.35071,
+        "computeTime": "2025-04-26T22:57:16.479006448Z"
+      },
+      {
+        "step": 16,
+        "epoch": 1,
+        "meanLoss": 83.46373,
+        "computeTime": "2025-04-26T22:57:18.729970112Z"
+      },
+      {
+        "step": 17,
+        "epoch": 1,
+        "meanLoss": 78.399025,
+        "computeTime": "2025-04-26T22:57:20.971006385Z"
+      },
+      {
+        "step": 18,
+        "epoch": 1,
+        "meanLoss": 117.56406,
+        "computeTime": "2025-04-26T22:57:23.248153610Z"
+      },
+      {
+        "step": 19,
+        "epoch": 1,
+        "meanLoss": 116.057655,
+        "computeTime": "2025-04-26T22:57:26.416890673Z"
+      },
+      {
+        "step": 20,
+        "epoch": 1,
+        "meanLoss": 65.874016,
+        "computeTime": "2025-04-26T22:57:28.764238469Z"
+      },
+      {
+        "step": 21,
+        "epoch": 1,
+        "meanLoss": 76.93759,
+        "computeTime": "2025-04-26T22:57:31.002158910Z"
+      },
+      {
+        "step": 22,
+        "epoch": 1,
+        "meanLoss": 110.54244,
+        "computeTime": "2025-04-26T22:57:33.592801532Z"
+      },
+      {
+        "step": 23,
+        "epoch": 1,
+        "meanLoss": 86.13668,
+        "computeTime": "2025-04-26T22:57:35.885729169Z"
+      },
+      {
+        "step": 24,
+        "epoch": 1,
+        "meanLoss": 113.43244,
+        "computeTime": "2025-04-26T22:57:38.129753119Z"
+      },
+      {
+        "step": 25,
+        "epoch": 1,
+        "meanLoss": 106.630005,
+        "computeTime": "2025-04-26T22:57:40.347027789Z"
+      },
+      {
+        "step": 26,
+        "epoch": 1,
+        "meanLoss": 104.92525,
+        "computeTime": "2025-04-26T22:57:42.579477783Z"
+      },
+      {
+        "step": 27,
+        "epoch": 1,
+        "meanLoss": 122.2281,
+        "computeTime": "2025-04-26T22:57:45.666525354Z"
+      },
+      {
+        "step": 28,
+        "epoch": 1,
+        "meanLoss": 74.18507,
+        "computeTime": "2025-04-26T22:57:47.907971317Z"
+      },
+      {
+        "step": 29,
+        "epoch": 1,
+        "meanLoss": 92.71228,
+        "computeTime": "2025-04-26T22:57:50.137661078Z"
+      },
+      {
+        "step": 30,
+        "epoch": 1,
+        "meanLoss": 67.1874,
+        "computeTime": "2025-04-26T22:57:52.390085505Z"
+      },
+      {
+        "step": 31,
+        "epoch": 1,
+        "meanLoss": 284.06964,
+        "computeTime": "2025-04-26T22:57:54.834417728Z"
+      },
+      {
+        "step": 32,
+        "epoch": 2,
+        "meanLoss": 90.291725,
+        "computeTime": "2025-04-26T22:57:57.834807689Z"
+      },
+      {
+        "step": 33,
+        "epoch": 2,
+        "meanLoss": 51.0582,
+        "computeTime": "2025-04-26T22:58:00.216344918Z"
+      },
+      {
+        "step": 34,
+        "epoch": 2,
+        "meanLoss": 50.444622,
+        "computeTime": "2025-04-26T22:58:02.455107780Z"
+      },
+      {
+        "step": 35,
+        "epoch": 2,
+        "meanLoss": 84.594,
+        "computeTime": "2025-04-26T22:58:04.678974582Z"
+      },
+      {
+        "step": 36,
+        "epoch": 2,
+        "meanLoss": 72.87898,
+        "computeTime": "2025-04-26T22:58:06.921184311Z"
+      },
+      {
+        "step": 37,
+        "epoch": 2,
+        "meanLoss": 62.345135,
+        "computeTime": "2025-04-26T22:58:09.190868155Z"
+      },
+      {
+        "step": 38,
+        "epoch": 2,
+        "meanLoss": 29.346657,
+        "computeTime": "2025-04-26T22:58:11.722020539Z"
+      },
+      {
+        "step": 39,
+        "epoch": 2,
+        "meanLoss": 45.976143,
+        "computeTime": "2025-04-26T22:58:15.448060137Z"
+      },
+      {
+        "step": 40,
+        "epoch": 2,
+        "meanLoss": 84.25395,
+        "computeTime": "2025-04-26T22:58:17.629710948Z"
+      },
+      {
+        "step": 41,
+        "epoch": 2,
+        "meanLoss": 63.29018,
+        "computeTime": "2025-04-26T22:58:19.931554533Z"
+      },
+      {
+        "step": 42,
+        "epoch": 2,
+        "meanLoss": 37.539803,
+        "computeTime": "2025-04-26T22:58:22.199600060Z"
+      },
+      {
+        "step": 43,
+        "epoch": 2,
+        "meanLoss": 75.62285,
+        "computeTime": "2025-04-26T22:58:24.731221937Z"
+      },
+      {
+        "step": 44,
+        "epoch": 2,
+        "meanLoss": 191.80432,
+        "computeTime": "2025-04-26T22:58:26.967300338Z"
+      },
+      {
+        "step": 45,
+        "epoch": 2,
+        "meanLoss": 64.75051,
+        "computeTime": "2025-04-26T22:58:29.208528214Z"
+      },
+      {
+        "step": 46,
+        "epoch": 2,
+        "meanLoss": 62.17987,
+        "computeTime": "2025-04-26T22:58:32.575576518Z"
+      },
+      {
+        "step": 47,
+        "epoch": 2,
+        "meanLoss": 71.055176,
+        "computeTime": "2025-04-26T22:58:34.822411674Z"
+      },
+      {
+        "step": 48,
+        "epoch": 3,
+        "meanLoss": 33.57263,
+        "computeTime": "2025-04-26T22:58:37.078170349Z"
+      },
+      {
+        "step": 49,
+        "epoch": 3,
+        "meanLoss": 177.23698,
+        "computeTime": "2025-04-26T22:58:39.324238290Z"
+      },
+      {
+        "step": 50,
+        "epoch": 3,
+        "meanLoss": 40.75667,
+        "computeTime": "2025-04-26T22:58:41.533173044Z"
+      },
+      {
+        "step": 51,
+        "epoch": 3,
+        "meanLoss": 53.134693,
+        "computeTime": "2025-04-26T22:58:43.755760456Z"
+      },
+      {
+        "step": 52,
+        "epoch": 3,
+        "meanLoss": 20.636068,
+        "computeTime": "2025-04-26T22:58:46.859298173Z"
+      },
+      {
+        "step": 53,
+        "epoch": 3,
+        "meanLoss": 28.533844,
+        "computeTime": "2025-04-26T22:58:49.144832564Z"
+      },
+      {
+        "step": 54,
+        "epoch": 3,
+        "meanLoss": 26.325785,
+        "computeTime": "2025-04-26T22:58:51.425349141Z"
+      },
+      {
+        "step": 55,
+        "epoch": 3,
+        "meanLoss": 27.180912,
+        "computeTime": "2025-04-26T22:58:53.687010481Z"
+      },
+      {
+        "step": 56,
+        "epoch": 3,
+        "meanLoss": 57.40941,
+        "computeTime": "2025-04-26T22:58:55.894777307Z"
+      },
+      {
+        "step": 57,
+        "epoch": 3,
+        "meanLoss": 44.059597,
+        "computeTime": "2025-04-26T22:58:58.170710390Z"
+      },
+      {
+        "step": 58,
+        "epoch": 3,
+        "meanLoss": 60.267334,
+        "computeTime": "2025-04-26T22:59:00.434820739Z"
+      },
+      {
+        "step": 59,
+        "epoch": 3,
+        "meanLoss": 58.98153,
+        "computeTime": "2025-04-26T22:59:02.701802327Z"
+      },
+      {
+        "step": 60,
+        "epoch": 3,
+        "meanLoss": 37.48461,
+        "computeTime": "2025-04-26T22:59:04.942480307Z"
+      },
+      {
+        "step": 61,
+        "epoch": 3,
+        "meanLoss": 22.343153,
+        "computeTime": "2025-04-26T22:59:07.162725243Z"
+      },
+      {
+        "step": 62,
+        "epoch": 3,
+        "meanLoss": 32.50371,
+        "computeTime": "2025-04-26T22:59:09.467434091Z"
+      },
+      {
+        "step": 63,
+        "epoch": 4,
+        "meanLoss": 20.130184,
+        "computeTime": "2025-04-26T22:59:11.705947384Z"
+      },
+      {
+        "step": 64,
+        "epoch": 4,
+        "meanLoss": 18.848356,
+        "computeTime": "2025-04-26T22:59:14.003415838Z"
+      },
+      {
+        "step": 65,
+        "epoch": 4,
+        "meanLoss": 30.720638,
+        "computeTime": "2025-04-26T22:59:16.239929673Z"
+      },
+      {
+        "step": 66,
+        "epoch": 4,
+        "meanLoss": 13.374651,
+        "computeTime": "2025-04-26T22:59:18.447764625Z"
+      },
+      {
+        "step": 67,
+        "epoch": 4,
+        "meanLoss": 107.13464,
+        "computeTime": "2025-04-26T22:59:20.682742299Z"
+      },
+      {
+        "step": 68,
+        "epoch": 4,
+        "meanLoss": 22.048124,
+        "computeTime": "2025-04-26T22:59:22.953619662Z"
+      },
+      {
+        "step": 69,
+        "epoch": 4,
+        "meanLoss": 26.64764,
+        "computeTime": "2025-04-26T22:59:25.279117486Z"
+      },
+      {
+        "step": 70,
+        "epoch": 4,
+        "meanLoss": 43.355396,
+        "computeTime": "2025-04-26T22:59:27.518410666Z"
+      },
+      {
+        "step": 71,
+        "epoch": 4,
+        "meanLoss": 14.531881,
+        "computeTime": "2025-04-26T22:59:29.763639378Z"
+      },
+      {
+        "step": 72,
+        "epoch": 4,
+        "meanLoss": 12.757875,
+        "computeTime": "2025-04-26T22:59:32.042615283Z"
+      },
+      {
+        "step": 73,
+        "epoch": 4,
+        "meanLoss": 16.858982,
+        "computeTime": "2025-04-26T22:59:34.275388798Z"
+      },
+      {
+        "step": 74,
+        "epoch": 4,
+        "meanLoss": 16.262718,
+        "computeTime": "2025-04-26T22:59:36.678664865Z"
+      },
+      {
+        "step": 75,
+        "epoch": 4,
+        "meanLoss": 66.5285,
+        "computeTime": "2025-04-26T22:59:38.892204083Z"
+      },
+      {
+        "step": 76,
+        "epoch": 4,
+        "meanLoss": 18.444042,
+        "computeTime": "2025-04-26T22:59:41.161980356Z"
+      },
+      {
+        "step": 77,
+        "epoch": 4,
+        "meanLoss": 29.981258,
+        "computeTime": "2025-04-26T22:59:43.394627868Z"
+      },
+      {
+        "step": 78,
+        "epoch": 4,
+        "meanLoss": 18.831106,
+        "computeTime": "2025-04-26T22:59:45.624288213Z"
+      },
+      {
+        "step": 79,
+        "epoch": 5,
+        "meanLoss": 13.7175455,
+        "computeTime": "2025-04-26T22:59:48.538546658Z"
+      }
+    ],
+    "tunedModel": "tunedModels/movierecommender2-rr5j3ujws1ex"
+  },
+  "done": true,
+  "response": {
+    "@type": "type.googleapis.com/google.ai.generativelanguage.v1beta.TunedModel",
+    "name": "tunedModels/movierecommender2-rr5j3ujws1ex",
+    "baseModel": "models/gemini-1.5-flash-001-tuning",
+    "displayName": "movie_recommender_2",
+    "state": "ACTIVE",
+    "createTime": "2025-04-26T22:56:42.067361Z",
+    "updateTime": "2025-04-26T22:59:54.039860Z",
+    "tuningTask": {
+      "startTime": "2025-04-26T22:56:42.215073358Z",
+      "completeTime": "2025-04-26T22:59:54.039860Z",
+      "snapshots": [
+        {
+          "step": 1,
+          "meanLoss": 228.2576,
+          "computeTime": "2025-04-26T22:56:44.706685454Z"
+        },
+        {
+          "step": 2,
+          "meanLoss": 219.2776,
+          "computeTime": "2025-04-26T22:56:47.001412055Z"
+        },
+        {
+          "step": 3,
+          "meanLoss": 243.3371,
+          "computeTime": "2025-04-26T22:56:49.307040750Z"
+        },
+        {
+          "step": 4,
+          "meanLoss": 248.55962,
+          "computeTime": "2025-04-26T22:56:51.573079381Z"
+        },
+        {
+          "step": 5,
+          "meanLoss": 171.19724,
+          "computeTime": "2025-04-26T22:56:53.855001288Z"
+        },
+        {
+          "step": 6,
+          "meanLoss": 198.50583,
+          "computeTime": "2025-04-26T22:56:56.173735586Z"
+        },
+        {
+          "step": 7,
+          "meanLoss": 166.24371,
+          "computeTime": "2025-04-26T22:56:58.440035837Z"
+        },
+        {
+          "step": 8,
+          "meanLoss": 185.09444,
+          "computeTime": "2025-04-26T22:57:00.756843223Z"
+        },
+        {
+          "step": 9,
+          "meanLoss": 180.38058,
+          "computeTime": "2025-04-26T22:57:03.045808331Z"
+        },
+        {
+          "step": 10,
+          "meanLoss": 134.95549,
+          "computeTime": "2025-04-26T22:57:05.321888907Z"
+        },
+        {
+          "step": 11,
+          "meanLoss": 189.45224,
+          "computeTime": "2025-04-26T22:57:07.537690100Z"
+        },
+        {
+          "step": 12,
+          "meanLoss": 95.75697,
+          "computeTime": "2025-04-26T22:57:09.765553884Z"
+        },
+        {
+          "step": 13,
+          "meanLoss": 134.59015,
+          "computeTime": "2025-04-26T22:57:12.037333701Z"
+        },
+        {
+          "step": 14,
+          "meanLoss": 346.88,
+          "computeTime": "2025-04-26T22:57:14.267522832Z"
+        },
+        {
+          "step": 15,
+          "meanLoss": 203.35071,
+          "computeTime": "2025-04-26T22:57:16.479006448Z"
+        },
+        {
+          "step": 16,
+          "epoch": 1,
+          "meanLoss": 83.46373,
+          "computeTime": "2025-04-26T22:57:18.729970112Z"
+        },
+        {
+          "step": 17,
+          "epoch": 1,
+          "meanLoss": 78.399025,
+          "computeTime": "2025-04-26T22:57:20.971006385Z"
+        },
+        {
+          "step": 18,
+          "epoch": 1,
+          "meanLoss": 117.56406,
+          "computeTime": "2025-04-26T22:57:23.248153610Z"
+        },
+        {
+          "step": 19,
+          "epoch": 1,
+          "meanLoss": 116.057655,
+          "computeTime": "2025-04-26T22:57:26.416890673Z"
+        },
+        {
+          "step": 20,
+          "epoch": 1,
+          "meanLoss": 65.874016,
+          "computeTime": "2025-04-26T22:57:28.764238469Z"
+        },
+        {
+          "step": 21,
+          "epoch": 1,
+          "meanLoss": 76.93759,
+          "computeTime": "2025-04-26T22:57:31.002158910Z"
+        },
+        {
+          "step": 22,
+          "epoch": 1,
+          "meanLoss": 110.54244,
+          "computeTime": "2025-04-26T22:57:33.592801532Z"
+        },
+        {
+          "step": 23,
+          "epoch": 1,
+          "meanLoss": 86.13668,
+          "computeTime": "2025-04-26T22:57:35.885729169Z"
+        },
+        {
+          "step": 24,
+          "epoch": 1,
+          "meanLoss": 113.43244,
+          "computeTime": "2025-04-26T22:57:38.129753119Z"
+        },
+        {
+          "step": 25,
+          "epoch": 1,
+          "meanLoss": 106.630005,
+          "computeTime": "2025-04-26T22:57:40.347027789Z"
+        },
+        {
+          "step": 26,
+          "epoch": 1,
+          "meanLoss": 104.92525,
+          "computeTime": "2025-04-26T22:57:42.579477783Z"
+        },
+        {
+          "step": 27,
+          "epoch": 1,
+          "meanLoss": 122.2281,
+          "computeTime": "2025-04-26T22:57:45.666525354Z"
+        },
+        {
+          "step": 28,
+          "epoch": 1,
+          "meanLoss": 74.18507,
+          "computeTime": "2025-04-26T22:57:47.907971317Z"
+        },
+        {
+          "step": 29,
+          "epoch": 1,
+          "meanLoss": 92.71228,
+          "computeTime": "2025-04-26T22:57:50.137661078Z"
+        },
+        {
+          "step": 30,
+          "epoch": 1,
+          "meanLoss": 67.1874,
+          "computeTime": "2025-04-26T22:57:52.390085505Z"
+        },
+        {
+          "step": 31,
+          "epoch": 1,
+          "meanLoss": 284.06964,
+          "computeTime": "2025-04-26T22:57:54.834417728Z"
+        },
+        {
+          "step": 32,
+          "epoch": 2,
+          "meanLoss": 90.291725,
+          "computeTime": "2025-04-26T22:57:57.834807689Z"
+        },
+        {
+          "step": 33,
+          "epoch": 2,
+          "meanLoss": 51.0582,
+          "computeTime": "2025-04-26T22:58:00.216344918Z"
+        },
+        {
+          "step": 34,
+          "epoch": 2,
+          "meanLoss": 50.444622,
+          "computeTime": "2025-04-26T22:58:02.455107780Z"
+        },
+        {
+          "step": 35,
+          "epoch": 2,
+          "meanLoss": 84.594,
+          "computeTime": "2025-04-26T22:58:04.678974582Z"
+        },
+        {
+          "step": 36,
+          "epoch": 2,
+          "meanLoss": 72.87898,
+          "computeTime": "2025-04-26T22:58:06.921184311Z"
+        },
+        {
+          "step": 37,
+          "epoch": 2,
+          "meanLoss": 62.345135,
+          "computeTime": "2025-04-26T22:58:09.190868155Z"
+        },
+        {
+          "step": 38,
+          "epoch": 2,
+          "meanLoss": 29.346657,
+          "computeTime": "2025-04-26T22:58:11.722020539Z"
+        },
+        {
+          "step": 39,
+          "epoch": 2,
+          "meanLoss": 45.976143,
+          "computeTime": "2025-04-26T22:58:15.448060137Z"
+        },
+        {
+          "step": 40,
+          "epoch": 2,
+          "meanLoss": 84.25395,
+          "computeTime": "2025-04-26T22:58:17.629710948Z"
+        },
+        {
+          "step": 41,
+          "epoch": 2,
+          "meanLoss": 63.29018,
+          "computeTime": "2025-04-26T22:58:19.931554533Z"
+        },
+        {
+          "step": 42,
+          "epoch": 2,
+          "meanLoss": 37.539803,
+          "computeTime": "2025-04-26T22:58:22.199600060Z"
+        },
+        {
+          "step": 43,
+          "epoch": 2,
+          "meanLoss": 75.62285,
+          "computeTime": "2025-04-26T22:58:24.731221937Z"
+        },
+        {
+          "step": 44,
+          "epoch": 2,
+          "meanLoss": 191.80432,
+          "computeTime": "2025-04-26T22:58:26.967300338Z"
+        },
+        {
+          "step": 45,
+          "epoch": 2,
+          "meanLoss": 64.75051,
+          "computeTime": "2025-04-26T22:58:29.208528214Z"
+        },
+        {
+          "step": 46,
+          "epoch": 2,
+          "meanLoss": 62.17987,
+          "computeTime": "2025-04-26T22:58:32.575576518Z"
+        },
+        {
+          "step": 47,
+          "epoch": 2,
+          "meanLoss": 71.055176,
+          "computeTime": "2025-04-26T22:58:34.822411674Z"
+        },
+        {
+          "step": 48,
+          "epoch": 3,
+          "meanLoss": 33.57263,
+          "computeTime": "2025-04-26T22:58:37.078170349Z"
+        },
+        {
+          "step": 49,
+          "epoch": 3,
+          "meanLoss": 177.23698,
+          "computeTime": "2025-04-26T22:58:39.324238290Z"
+        },
+        {
+          "step": 50,
+          "epoch": 3,
+          "meanLoss": 40.75667,
+          "computeTime": "2025-04-26T22:58:41.533173044Z"
+        },
+        {
+          "step": 51,
+          "epoch": 3,
+          "meanLoss": 53.134693,
+          "computeTime": "2025-04-26T22:58:43.755760456Z"
+        },
+        {
+          "step": 52,
+          "epoch": 3,
+          "meanLoss": 20.636068,
+          "computeTime": "2025-04-26T22:58:46.859298173Z"
+        },
+        {
+          "step": 53,
+          "epoch": 3,
+          "meanLoss": 28.533844,
+          "computeTime": "2025-04-26T22:58:49.144832564Z"
+        },
+        {
+          "step": 54,
+          "epoch": 3,
+          "meanLoss": 26.325785,
+          "computeTime": "2025-04-26T22:58:51.425349141Z"
+        },
+        {
+          "step": 55,
+          "epoch": 3,
+          "meanLoss": 27.180912,
+          "computeTime": "2025-04-26T22:58:53.687010481Z"
+        },
+        {
+          "step": 56,
+          "epoch": 3,
+          "meanLoss": 57.40941,
+          "computeTime": "2025-04-26T22:58:55.894777307Z"
+        },
+        {
+          "step": 57,
+          "epoch": 3,
+          "meanLoss": 44.059597,
+          "computeTime": "2025-04-26T22:58:58.170710390Z"
+        },
+        {
+          "step": 58,
+          "epoch": 3,
+          "meanLoss": 60.267334,
+          "computeTime": "2025-04-26T22:59:00.434820739Z"
+        },
+        {
+          "step": 59,
+          "epoch": 3,
+          "meanLoss": 58.98153,
+          "computeTime": "2025-04-26T22:59:02.701802327Z"
+        },
+        {
+          "step": 60,
+          "epoch": 3,
+          "meanLoss": 37.48461,
+          "computeTime": "2025-04-26T22:59:04.942480307Z"
+        },
+        {
+          "step": 61,
+          "epoch": 3,
+          "meanLoss": 22.343153,
+          "computeTime": "2025-04-26T22:59:07.162725243Z"
+        },
+        {
+          "step": 62,
+          "epoch": 3,
+          "meanLoss": 32.50371,
+          "computeTime": "2025-04-26T22:59:09.467434091Z"
+        },
+        {
+          "step": 63,
+          "epoch": 4,
+          "meanLoss": 20.130184,
+          "computeTime": "2025-04-26T22:59:11.705947384Z"
+        },
+        {
+          "step": 64,
+          "epoch": 4,
+          "meanLoss": 18.848356,
+          "computeTime": "2025-04-26T22:59:14.003415838Z"
+        },
+        {
+          "step": 65,
+          "epoch": 4,
+          "meanLoss": 30.720638,
+          "computeTime": "2025-04-26T22:59:16.239929673Z"
+        },
+        {
+          "step": 66,
+          "epoch": 4,
+          "meanLoss": 13.374651,
+          "computeTime": "2025-04-26T22:59:18.447764625Z"
+        },
+        {
+          "step": 67,
+          "epoch": 4,
+          "meanLoss": 107.13464,
+          "computeTime": "2025-04-26T22:59:20.682742299Z"
+        },
+        {
+          "step": 68,
+          "epoch": 4,
+          "meanLoss": 22.048124,
+          "computeTime": "2025-04-26T22:59:22.953619662Z"
+        },
+        {
+          "step": 69,
+          "epoch": 4,
+          "meanLoss": 26.64764,
+          "computeTime": "2025-04-26T22:59:25.279117486Z"
+        },
+        {
+          "step": 70,
+          "epoch": 4,
+          "meanLoss": 43.355396,
+          "computeTime": "2025-04-26T22:59:27.518410666Z"
+        },
+        {
+          "step": 71,
+          "epoch": 4,
+          "meanLoss": 14.531881,
+          "computeTime": "2025-04-26T22:59:29.763639378Z"
+        },
+        {
+          "step": 72,
+          "epoch": 4,
+          "meanLoss": 12.757875,
+          "computeTime": "2025-04-26T22:59:32.042615283Z"
+        },
+        {
+          "step": 73,
+          "epoch": 4,
+          "meanLoss": 16.858982,
+          "computeTime": "2025-04-26T22:59:34.275388798Z"
+        },
+        {
+          "step": 74,
+          "epoch": 4,
+          "meanLoss": 16.262718,
+          "computeTime": "2025-04-26T22:59:36.678664865Z"
+        },
+        {
+          "step": 75,
+          "epoch": 4,
+          "meanLoss": 66.5285,
+          "computeTime": "2025-04-26T22:59:38.892204083Z"
+        },
+        {
+          "step": 76,
+          "epoch": 4,
+          "meanLoss": 18.444042,
+          "computeTime": "2025-04-26T22:59:41.161980356Z"
+        },
+        {
+          "step": 77,
+          "epoch": 4,
+          "meanLoss": 29.981258,
+          "computeTime": "2025-04-26T22:59:43.394627868Z"
+        },
+        {
+          "step": 78,
+          "epoch": 4,
+          "meanLoss": 18.831106,
+          "computeTime": "2025-04-26T22:59:45.624288213Z"
+        },
+        {
+          "step": 79,
+          "epoch": 5,
+          "meanLoss": 13.7175455,
+          "computeTime": "2025-04-26T22:59:48.538546658Z"
+        }
+      ],
+      "hyperparameters": {
+        "epochCount": 5,
+        "batchSize": 4,
+        "learningRate": 0.001
+      }
+    },
+    "temperature": 1,
+    "topP": 0.95,
+    "topK": 64
+  }
+}
