@@ -106,40 +106,6 @@ def extract_year_reference(entities, entity_types):
     return None
 
 
-def parse_rating_reference(prompt: str):
-    """
-    Parse rating references from the prompt like "5 star movies", "highly rated",
-    "top rated", "4.5 rating", etc.
-    Returns a minimum rating threshold (float between 0-5) if found, otherwise None.
-    """
-    # Check for explicit star ratings (e.g., "5 star", "4.5 rated")
-    explicit_rating = re.search(
-        r"(\d+\.?\d*)\s*(?:star|stars|rated|rating)", prompt.lower()
-    )
-    if explicit_rating:
-        rating = float(explicit_rating.group(1))
-        # Ensure rating is within the valid range (0-5)
-        if 0 <= rating <= 5:
-            return rating
-
-    # Check for descriptive terms
-    if re.search(
-        r"\b(?:top|highest|best|highly)\s+(?:rated|acclaimed|reviewed)\b",
-        prompt.lower(),
-    ):
-        return 4.5  # Very high threshold for "top rated", "highly acclaimed", etc.
-    elif re.search(
-        r"\b(?:well|good|great)\s+(?:rated|reviewed|acclaimed)\b", prompt.lower()
-    ):
-        return 4.0  # High threshold for "well rated", etc.
-    elif re.search(
-        r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b", prompt.lower()
-    ):
-        return None  # We'll handle low rated movies separately
-
-    return None
-
-
 def extract_features(prompt: str) -> dict:
     """Hybrid feature extraction with pretrained models and rules"""
     doc = nlp(prompt.lower())
@@ -284,7 +250,7 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
     date_filter_range = decade_range or year_range
 
     # Check for rating reference
-    rating_threshold = parse_rating_reference(prompt)
+    rating_threshold = None
     is_low_rating_query = (
         re.search(
             r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
@@ -427,7 +393,7 @@ def get_keyword_recommendations(prompt: str, top_n=10):
     date_filter_range = decade_range or year_range
 
     # Check for rating reference
-    rating_threshold = parse_rating_reference(prompt)
+    rating_threshold = None
     is_low_rating_query = (
         re.search(
             r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
@@ -535,10 +501,9 @@ def get_keyword_recommendations(prompt: str, top_n=10):
         ]
     elif is_low_rating_query:
         # For low rated movies, prioritize movies with lower ratings
-        # But don't include movies with extremely low ratings (below 2.0) which might be too bad
+        # Updated threshold: below 3.0 is considered poor
         top_recommendations = top_recommendations[
-            (top_recommendations["bayesian_avg"] >= 2.0)
-            & (top_recommendations["bayesian_avg"] <= 3.5)
+            (top_recommendations["bayesian_avg"] < 3.0)
         ]
         # Sort by rating ascending (worst first)
         top_recommendations = top_recommendations.sort_values(
