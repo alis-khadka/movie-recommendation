@@ -1,0 +1,8 @@
+{
+  "name": "tunedModels/movierecommender2-rr5j3ujws1ex/operations/hik4nlqxwf7y",
+  "metadata": {
+    "@type": "type.googleapis.com/google.ai.generativelanguage.v1beta.CreateTunedModelMetadata",
+    "totalSteps": 79,
+    "tunedModel": "tunedModels/movierecommender2-rr5j3ujws1ex"
+  }
+}
