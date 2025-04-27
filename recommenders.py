@@ -5,7 +5,7 @@ from models import nlp, kw_model, tfidf_vectorizer, tfidf_feature_matrix
 from data_processing import movies_tfidf_df
 import logging
 import re
-from fuzzywuzzy import fuzz
+from fuzzywuzzy import fuzz  # For fuzzy matching
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def entity_matches_title(entity, title):
     # Fuzzy match for longer entity names (to avoid false positives with short names)
     if len(entity) > 3:
         ratio = fuzz.partial_ratio(entity, clean_title)
-        return ratio > 85  # Increased from 80 to 85 for more precise matching
+        return ratio > 80  # Threshold for considering it a match
 
     return False
 
@@ -43,10 +43,75 @@ def entity_in_tags(entity, tags):
     # Fuzzy match for longer entity names
     if len(entity) > 3:
         for tag in tags:
-            if fuzz.partial_ratio(entity, tag.lower()) > 85:  # Increased from 80 to 85
+            if fuzz.partial_ratio(entity, tag.lower()) > 80:
                 return True
 
     return False
+
+
+def parse_date_range(prompt: str):
+    """
+    Parse date range references like "between 2000-2010", "from 2000 to 2010"
+    Returns a tuple of (start_year, end_year) if found, otherwise None.
+    """
+    # Pattern for "between YYYY-YYYY" or "between YYYY and YYYY"
+    between_pattern = r"between\s+(\d{4})[- ](?:and |to )?(\d{4})"
+    # Pattern for "from YYYY to YYYY"
+    from_to_pattern = r"from\s+(\d{4})\s+to\s+(\d{4})"
+
+    # Check for "between" pattern
+    between_match = re.search(between_pattern, prompt.lower())
+    if between_match:
+        start_year = int(between_match.group(1))
+        end_year = int(between_match.group(2))
+        return (start_year, end_year)
+
+    # Check for "from-to" pattern
+    from_to_match = re.search(from_to_pattern, prompt.lower())
+    if from_to_match:
+        start_year = int(from_to_match.group(1))
+        end_year = int(from_to_match.group(2))
+        return (start_year, end_year)
+
+    return None
+
+
+def parse_multiple_decades(prompt: str):
+    """
+    Parse multiple decade references like "in 2000s and 2010s"
+    Returns a tuple of (min_year, max_year) covering all mentioned decades.
+    """
+    decades = []
+
+    # Pattern for full decades like "1990s", "2000s" - capture all occurrences
+    full_pattern = r"\b(1[0-9]{3}|20[0-9]{2})s\b"
+    # Pattern for short decades like "90s", "00s"
+    short_pattern = r"\b([1-9]0)s\b"
+
+    # Find all full decade patterns
+    full_matches = re.findall(full_pattern, prompt.lower())
+    for match in full_matches:
+        base_year = int(match)
+        decades.append((base_year, base_year + 9))
+
+    # Find all short decade patterns
+    short_matches = re.findall(short_pattern, prompt.lower())
+    for match in short_matches:
+        decade = int(match)
+        # Convert "90" to "1990", "00" to "2000", etc.
+        if decade < 30:  # Assume 00s, 10s, 20s refer to 2000s, 2010s, 2020s
+            base_year = 2000 + decade
+        else:  # Assume 30s through 90s refer to 1900s
+            base_year = 1900 + decade
+        decades.append((base_year, base_year + 9))
+
+    # If multiple decades found, return the min and max years
+    if decades:
+        min_year = min(decade[0] for decade in decades)
+        max_year = max(decade[1] for decade in decades)
+        return (min_year, max_year)
+
+    return None
 
 
 def parse_decade_reference(prompt: str):
@@ -93,8 +158,9 @@ def extract_year_reference(entities, entity_types):
             year_match = re.search(r"\b(19[0-9]{2}|20[0-9]{2})\b", entity)
             if year_match:
                 year = int(year_match.group(1))
-                # Only consider reasonable movie years (1900-2025)
-                if 1900 <= year <= 2025:
+                # Only consider reasonable movie years (1900-2025) - Adjust upper bound as needed
+                current_year = pd.Timestamp.now().year
+                if 1900 <= year <= current_year + 1:
                     years.append(year)
 
     if years:
@@ -115,41 +181,34 @@ def extract_features(prompt: str) -> dict:
     prompt_lower = prompt.lower()
     prompt_words = prompt_lower.split()
 
-    # Direct lookup for single word keywords - give higher weight to genre matches
+    # Direct lookup for single word keywords
     for word in prompt_words:
         if word in config.KEYWORD_TO_GENRE:
-            detected_genres.append(config.KEYWORD_TO_GENRE[word])
-            # Add the genre twice to increase its weight in the processed text
             detected_genres.append(config.KEYWORD_TO_GENRE[word])
 
     # Check for multi-word keywords
     for keyword in config.KEYWORD_TO_GENRE:
         if " " in keyword and keyword in prompt_lower:
             detected_genres.append(config.KEYWORD_TO_GENRE[keyword])
-            # Add the genre twice to increase its weight in the processed text
-            detected_genres.append(config.KEYWORD_TO_GENRE[keyword])
 
-    # Also detect the genre name directly if mentioned - with triple weight
+    # Also detect the genre name directly if mentioned
     for genre in config.GENRE_MAPPING:
-        if genre in prompt_lower.split():
-            detected_genres.append(genre)
-            detected_genres.append(genre)
+        # Check if the genre word itself is present
+        if genre.lower() in prompt_words:
             detected_genres.append(genre)
 
     detected_genres = list(set(detected_genres))
 
-    # KeyBERT keyword extraction with improved diversity and threshold
+    # KeyBERT keyword extraction
     keywords = kw_model.extract_keywords(
         prompt,
-        keyphrase_ngram_range=(1, 3),  # Increased from (1,2) to (1,3)
+        keyphrase_ngram_range=(1, 2),
         stop_words="english",
-        top_n=8,  # Increased from 5 to 8 to get more keywords
+        top_n=5,
         use_mmr=True,
-        diversity=0.5,  # Decreased from 0.7 to 0.5 for less diversity but more focus
+        diversity=0.7,
     )
-    key_phrases = [
-        kw[0] for kw in keywords if kw[1] > 0.15
-    ]  # Lower threshold from 0.2 to 0.15
+    key_phrases = [kw[0] for kw in keywords if kw[1] > 0.2]
 
     # Enhanced SpaCy entity recognition - expanded to include more entity types
     entity_dict = {}
@@ -167,34 +226,24 @@ def extract_features(prompt: str) -> dict:
             "GPE",
             "NORP",
             "LANGUAGE",
-            "TITLE",
+            # "TITLE", # TITLE is not a standard SpaCy label
         ]:
             entity_dict[ent.text] = ent.label_
-            # Person and Work_of_Art entities are especially important for movies
-            if ent.label_ in ["PERSON", "WORK_OF_ART"]:
-                # Add them multiple times to increase weight
-                entity_dict[ent.text + " " + ent.text] = ent.label_
 
     entities = list(entity_dict.keys())
     entity_types = list(entity_dict.values())
 
-    # Give more weight to exact matches between entities and key phrases
-    weighted_entities = []
-    for entity in entities:
-        weighted_entities.append(entity)
-        # Add the entity again if it also appears in key phrases for more weight
-        if entity in key_phrases:
-            weighted_entities.append(entity)
-
-    combined_features = list(set(detected_genres + key_phrases + weighted_entities))
+    combined_features = list(set(detected_genres + key_phrases + entities))
     processed_text = " ".join(combined_features)
 
+    # Return requested_genres separately to help with genre diversity scoring
     return {
         "genres": detected_genres,
         "keywords": key_phrases,
         "entities": entities,
         "entity_types": entity_types,
         "processed_text": processed_text,
+        "requested_genres": detected_genres,  # Store explicitly requested genres
     }
 
 
@@ -206,66 +255,40 @@ def find_entity_matches(features, top_n=50):
     if not features["entities"]:
         return []
 
-    # Increase the number of movies considered to 3x the requested top_n for better recall
-    search_pool = min(len(movies_tfidf_df), top_n * 3)
+    # Ensure tags column exists and handle potential NaN values
+    if "tags" not in movies_tfidf_df.columns:
+        logger.warning("Tags column missing, cannot perform entity matching on tags.")
+        movies_tfidf_df["tags"] = [
+            [] for _ in range(len(movies_tfidf_df))
+        ]  # Add empty list if missing
+    else:
+        # Ensure tags are lists, handle NaN/float types
+        movies_tfidf_df["tags"] = movies_tfidf_df["tags"].apply(
+            lambda x: (
+                x if isinstance(x, list) else ([] if pd.isna(x) else str(x).split("|"))
+            )
+        )
 
     # Check entities against movie titles and tags
-    for idx, movie in movies_tfidf_df.head(search_pool).iterrows():
+    # Iterate over a potentially larger set initially if filtering is expected
+    initial_check_df = movies_tfidf_df  # Check against all movies initially
+    for idx, movie in initial_check_df.iterrows():
         title = movie["title"]
-        tags = movie.get("tags", [])
+        tags = movie.get("tags", [])  # Use .get for safety
         match_score = 0
         matched_entities = []
 
-        # Extract the clean title without year for better matching
-        clean_title = re.sub(r"\s*\(\d{4}\)\s*$", "", title).lower()
-
         for entity in features["entities"]:
-            entity_lower = entity.lower()
-
-            # Check if entity exactly matches full title (strongest signal)
-            if entity_lower == clean_title:
-                match_score += 8  # Highest score for exact title matches
-                matched_entities.append(entity)
-                continue
-
-            # Check if entity matches title using our fuzzy match function
+            # Check if entity matches title
             if entity_matches_title(entity, title):
-                # Give higher weight to person entities in titles
-                if any(ent.label_ == "PERSON" for ent in nlp(entity).ents):
-                    match_score += 7  # Increased weight for person entity matches
-                else:
-                    match_score += 5  # Standard title match
+                match_score += 3  # Higher weight for title matches
                 matched_entities.append(entity)
-                continue
-
-            # Check if entity is a substantial part of the title
-            # This helps with partial title matches like "Matrix" for "The Matrix"
-            if len(entity_lower) > 3 and entity_lower in clean_title:
-                # Make sure it's a significant portion (not just a minor word)
-                if len(entity_lower) > len(clean_title) / 3:
-                    match_score += 4  # Good score for substantial partial matches
-                    matched_entities.append(entity)
-                    continue
 
             # Check if entity matches any tags
-            if entity_in_tags(entity, tags):
-                match_score += 2
-                matched_entities.append(entity)
-                continue
-
-            # Check for genre matches in entity if we have genres
-            genres = movie.get("genres", "").lower().split("|")
-            if any(genre in entity_lower for genre in genres if genre):
-                match_score += 1  # Minor bonus for genre match
+            elif entity_in_tags(entity, tags):
+                match_score += 1
                 matched_entities.append(entity)
 
-        # Bonus score for movies with multiple matched entities
-        if len(matched_entities) > 1:
-            match_score += (
-                len(matched_entities) - 1
-            )  # Additional points for multiple matches
-
-        # Only include if there's a meaningful match
         if match_score > 0:
             entity_matches.append(
                 {
@@ -278,7 +301,8 @@ def find_entity_matches(features, top_n=50):
 
     # Sort by match score
     entity_matches.sort(key=lambda x: x["match_score"], reverse=True)
-    return entity_matches
+    # Return up to top_n matches after sorting all potential matches
+    return entity_matches[:top_n]
 
 
 # --- Recommendation Logic ---
@@ -286,33 +310,49 @@ def find_entity_matches(features, top_n=50):
 
 def get_enhanced_recommendations(prompt: str, top_n=10):
     """Generates recommendations with enhanced entity matching"""
-    logger.info(f"--- Inside Enhanced Recommender ---")
+    logger.info(f"--- Inside Enhanced Recommender --- V_UPDATED")
     logger.info(f"Received prompt: {prompt}, top_n: {top_n}")
     features = extract_features(prompt)
     logger.info(f"Extracted Features: {features}")
 
-    # Check for decade references first
-    decade_range = parse_decade_reference(prompt)
-    year_range = None
+    # Enhanced date range detection - check in priority order
+    date_filter_range = None
 
-    if decade_range:
-        start_year, end_year = decade_range
-        logger.info(
-            f"Detected decade reference: {start_year}s ({start_year}-{end_year})"
-        )
-    else:
-        # If no decade reference found, check for specific year
+    # 1. First check for date range format like "between 2000-2010"
+    date_range = parse_date_range(prompt)
+    if date_range:
+        start_year, end_year = date_range
+        date_filter_range = (start_year, end_year)
+        logger.info(f"Detected date range: between {start_year}-{end_year}")
+
+    # 2. Next check for multiple decades like "2000s and 2010s"
+    elif "and" in prompt.lower() and re.search(r"\d+s", prompt.lower()):
+        multiple_decades = parse_multiple_decades(prompt)
+        if multiple_decades:
+            start_year, end_year = multiple_decades
+            date_filter_range = (start_year, end_year)
+            logger.info(f"Detected multiple decades: {start_year}-{end_year}")
+
+    # 3. Check for single decade reference
+    elif not date_filter_range:
+        decade_range = parse_decade_reference(prompt)
+        if decade_range:
+            start_year, end_year = decade_range
+            date_filter_range = (start_year, end_year)
+            logger.info(
+                f"Detected decade reference: {start_year}s ({start_year}-{end_year})"
+            )
+
+    # 4. Fall back to specific year extraction from entities
+    if not date_filter_range:
         year_range = extract_year_reference(
             features["entities"], features["entity_types"]
         )
         if year_range:
+            date_filter_range = year_range
             logger.info(f"Detected specific year reference: {year_range[0]}")
 
-    # Use either decade range or specific year range for filtering
-    date_filter_range = decade_range or year_range
-
-    # Check for rating reference
-    rating_threshold = None
+    # Check for rating reference (removed threshold logic, kept low rating flag)
     is_low_rating_query = (
         re.search(
             r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
@@ -321,18 +361,21 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
         is not None
     )
 
-    if rating_threshold:
-        logger.info(f"Detected rating threshold: {rating_threshold}")
-    elif is_low_rating_query:
+    if is_low_rating_query:
         logger.info("Detected request for low rated movies")
 
-    # Get standard TF-IDF recommendations (date & rating filtering already applied)
-    # Increase candidate pool for better diversity
-    tfidf_recommendations = get_keyword_recommendations(prompt, top_n=top_n * 2)
+    # Get standard TF-IDF recommendations (now includes final_score)
+    tfidf_recommendations = get_keyword_recommendations(
+        prompt,
+        top_n=top_n * 2,  # Get more initially to allow for better merging/sorting
+        date_filter_range=date_filter_range,
+        is_low_rating_query=is_low_rating_query,
+        features=features,
+    )
 
-    # Get entity-based matches with a larger pool
-    entity_matches = find_entity_matches(features, top_n=200)
-    logger.info(f"Found {len(entity_matches)} entity matches")
+    # Get entity-based matches (check against more movies initially)
+    entity_matches = find_entity_matches(features, top_n=100)
+    logger.info(f"Found {len(entity_matches)} entity matches initially")
 
     # Filter entity matches by date range if specified
     if date_filter_range:
@@ -352,343 +395,412 @@ def get_enhanced_recommendations(prompt: str, top_n=10):
             f"After date filtering, {len(entity_matches)} entity matches remain"
         )
 
-    # Filter entity matches by rating if needed
-    if rating_threshold or is_low_rating_query:
+    # Filter entity matches by rating if needed (only for low rating query)
+    if is_low_rating_query:
         filtered_entity_matches = []
-
         for match in entity_matches:
+            # Look up the movie's rating
             movie_data = movies_tfidf_df[movies_tfidf_df["movieId"] == match["movieId"]]
-
-            if len(movie_data) > 0:
+            if not movie_data.empty:
                 bayesian_avg = movie_data["bayesian_avg"].values[0]
-
-                if rating_threshold and bayesian_avg >= rating_threshold:
+                # Define low rating threshold (e.g., below 3.0)
+                if bayesian_avg < 3.0:
                     filtered_entity_matches.append(match)
-                # Adjust the rating range for low rated query (from 2.0-3.5 to using median)
-                elif is_low_rating_query:
-                    median_rating = movies_tfidf_df["bayesian_avg"].median()
-                    if bayesian_avg < median_rating:
-                        filtered_entity_matches.append(match)
+            else:
+                logger.warning(
+                    f"MovieId {match['movieId']} not found in movies_tfidf_df during rating filter."
+                )
 
         entity_matches = filtered_entity_matches
         logger.info(
-            f"After rating filtering, {len(entity_matches)} entity matches remain"
+            f"After low rating filtering, {len(entity_matches)} entity matches remain"
         )
 
     # If we have entity matches, boost those recommendations
-    final_recommendations = tfidf_recommendations.copy()
-
     if entity_matches:
         # Create a dictionary of movieId -> entity match score
         entity_match_dict = {
             match["movieId"]: match["match_score"] for match in entity_matches
         }
 
-        # Get highest match score for normalization
-        max_match_score = (
-            max([match["match_score"] for match in entity_matches])
-            if entity_matches
-            else 1
-        )
+        # Get IDs from the TF-IDF recommendations
+        tfidf_recommendation_ids = set(tfidf_recommendations["movieId"].values)
 
-        # Update similarity scores for movies that appear in both TF-IDF and entity matches
-        for idx, row in tfidf_recommendations.iterrows():
-            movie_id = row["movieId"]
-            if movie_id in entity_match_dict:
-                # Adjust the existing similarity score based on entity match score
-                match_score = entity_match_dict[movie_id]
-                current_similarity = row["similarity_score"]
-
-                # Normalize match score and apply a stronger, more progressive boost
-                normalized_match = match_score / max_match_score
-                boost_factor = 0.2 * (
-                    normalized_match**0.8
-                )  # Progressive boost that favors higher matches
-
-                new_similarity = min(current_similarity + boost_factor, 1.0)
-                final_recommendations.at[idx, "similarity_score"] = new_similarity
-
-        # Get IDs from the recommendations we already have
-        existing_recommendation_ids = set(final_recommendations["movieId"].values)
-
-        # Find high-scoring entity matches not already included
-        # Use a dynamic threshold based on the highest match scores
-        threshold_value = max(
-            2, max_match_score * 0.25
-        )  # At least 2, or 25% of max score
+        # Find any high-scoring entity matches not already in TF-IDF recommendations
+        # Consider matches with score >= 1 (any entity match)
         missing_entity_matches = [
             match
             for match in entity_matches
-            if match["movieId"] not in existing_recommendation_ids
-            and match["match_score"] >= threshold_value
+            if match["movieId"] not in tfidf_recommendation_ids
+            # and match["match_score"] >= 3 # Relaxed threshold to include more relevant entity matches
         ]
 
-        # If we have missing high-scoring matches, add them
         if missing_entity_matches:
-            # Take up to 8 top missing matches, more than before
-            top_missing = missing_entity_matches[: min(8, len(missing_entity_matches))]
+            # Sort missing matches by score to add the best ones first
+            missing_entity_matches.sort(key=lambda x: x["match_score"], reverse=True)
 
-            # Get these movies from the DataFrame
-            for match in top_missing:
-                movie_data = movies_tfidf_df[
+            rows_to_append = []
+            added_ids = set(tfidf_recommendations["movieId"].values)
+            for match in missing_entity_matches:
+                # Skip if needed
+                if len(rows_to_append) >= top_n:
+                    break
+                if match["movieId"] in added_ids:
+                    continue
+
+                movie_data_series = movies_tfidf_df[
                     movies_tfidf_df["movieId"] == match["movieId"]
-                ].iloc[0]
+                ]
+                if not movie_data_series.empty:
+                    movie_data = movie_data_series.iloc[0]
 
-                # Progressive scoring that boosts higher matches more strongly
-                normalized_score = match["match_score"] / max_match_score
-                base_similarity = 0.5 + (normalized_score * 0.5)  # This scales 0-1
+                    # --- Calculate final_score for entity matches ---
+                    # Use a base similarity reflecting entity match strength
+                    entity_sim_score = 0.5 + min(0.4, match["match_score"] / 10.0)
 
-                match_row = pd.DataFrame(
-                    {
-                        "movieId": [movie_data["movieId"]],
-                        "title": [movie_data["title"]],
-                        "genres": [movie_data["genres"].split("|")],
-                        "bayesian_avg": [movie_data["bayesian_avg"]],
-                        "similarity_score": [base_similarity],
+                    # Normalize rating for this movie
+                    bayesian_avg_numeric = pd.to_numeric(
+                        movie_data["bayesian_avg"], errors="coerce"
+                    )
+                    # Use global mean or fallback if needed for normalization consistency
+                    # Assuming mean_rating is accessible or recalculate/approximate
+                    mean_rating_fallback = 3.0  # Example fallback mean
+                    filled_rating = (
+                        bayesian_avg_numeric
+                        if not pd.isna(bayesian_avg_numeric)
+                        else mean_rating_fallback
+                    )
+                    normalized_rating = (filled_rating / 5.0).clip(
+                        0, 1
+                    )  # Assuming 5.0 max
+
+                    # Use same weights as in keyword recommender
+                    w_sim = 0.7
+                    w_rating = 0.3
+                    final_score = (entity_sim_score * w_sim) + (
+                        normalized_rating * w_rating
+                    )
+                    # ------------------------------------------------
+
+                    match_row = {
+                        "movieId": movie_data["movieId"],
+                        "title": movie_data["title"],
+                        "genres": (
+                            movie_data["genres"].split("|")
+                            if isinstance(movie_data["genres"], str)
+                            else []
+                        ),
+                        "bayesian_avg": movie_data["bayesian_avg"],
+                        "similarity_score": entity_sim_score,  # Store the entity-based sim score
+                        "final_score": final_score,  # Store the combined score
                     }
+                    rows_to_append.append(match_row)
+                    added_ids.add(match["movieId"])
+                else:
+                    logger.warning(
+                        f"MovieId {match['movieId']} not found when trying to append missing entity match."
+                    )
+
+            # Add to recommendations using pd.concat
+            if rows_to_append:
+                tfidf_recommendations = pd.concat(
+                    [tfidf_recommendations, pd.DataFrame(rows_to_append)],
+                    ignore_index=True,
                 )
-                # Add to recommendations using concat instead of append
-                final_recommendations = pd.concat(
-                    [final_recommendations, match_row], ignore_index=True
-                )
 
-    # Special handling for queries
-    if is_low_rating_query:
-        # For low rated movies, prioritize by similarity then by lowest rating
-        final_recommendations = final_recommendations.sort_values(
-            by=["similarity_score", "bayesian_avg"], ascending=[False, True]
-        ).head(top_n)
-    else:
-        # Create a composite ranking that balances similarity, entity matching and quality
-        # Normalize ratings to 0-1 range
-        min_rating = movies_tfidf_df["bayesian_avg"].min()
-        max_rating = movies_tfidf_df["bayesian_avg"].max()
-        rating_range = max_rating - min_rating
+            # --- Re-sort combined list by final_score ---
+            if is_low_rating_query:
+                # Sort by final_score desc, then rating asc
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by=["final_score", "bayesian_avg"], ascending=[False, True]
+                ).head(top_n)
+            else:
+                # Default sorting by final_score desc
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by="final_score", ascending=False
+                ).head(top_n)
+            # --------------------------------------------
+        else:  # If no missing entity matches, ensure the original list is sorted correctly
+            if is_low_rating_query:
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by=["final_score", "bayesian_avg"], ascending=[False, True]
+                ).head(top_n)
+            else:
+                tfidf_recommendations = tfidf_recommendations.sort_values(
+                    by="final_score", ascending=False
+                ).head(top_n)
 
-        final_recommendations["norm_rating"] = (
-            final_recommendations["bayesian_avg"] - min_rating
-        ) / rating_range
-
-        # Calculate final score with adjusted weights
-        final_recommendations["final_score"] = (
-            final_recommendations["similarity_score"]
-            * 0.8  # Higher weight for similarity
-            + final_recommendations["norm_rating"] * 0.2  # Lower weight for rating
-        )
-
-        # Sort by the final score
-        final_recommendations = final_recommendations.sort_values(
-            by="final_score", ascending=False
-        ).head(top_n)
-
-        # Remove temporary columns
-        final_recommendations = final_recommendations.drop(
-            columns=["norm_rating", "final_score"]
-        )
-
-    logger.info(f"Returning {len(final_recommendations)} recommendations.")
-    return final_recommendations
-
-
-def get_keyword_recommendations(prompt: str, top_n=10):
-    """Generates recommendations based on keyword/TF-IDF matching."""
-    logger.info(f"--- Inside Keyword Recommender ---")
-    logger.info(f"Received prompt: {prompt}, top_n: {top_n}")
-    features = extract_features(prompt)
-    logger.info(f"Extracted Features: {features}")
-
-    # Check for decade references first
-    decade_range = parse_decade_reference(prompt)
-    year_range = None
-
-    if decade_range:
-        start_year, end_year = decade_range
+    # Apply genre diversity enhancement if multiple genres were requested
+    if features["requested_genres"] and len(features["requested_genres"]) > 1:
         logger.info(
-            f"Detected decade reference: {start_year}s ({start_year}-{end_year})"
+            f"Applying genre diversity for requested genres: {features['requested_genres']}"
         )
-    else:
-        # If no decade reference found, check for specific year
-        year_range = extract_year_reference(
-            features["entities"], features["entity_types"]
+        # Create a more diverse recommendation set
+        tfidf_recommendations = enhance_genre_diversity(
+            tfidf_recommendations, features["requested_genres"], top_n=top_n
         )
-        if year_range:
-            logger.info(f"Detected specific year reference: {year_range[0]}")
 
-    # Use either decade range or specific year range for filtering
-    date_filter_range = decade_range or year_range
+    logger.info(f"Returning {len(tfidf_recommendations)} recommendations.")
+    # Return the standard columns, final_score might not be needed in the final API response
+    return tfidf_recommendations[
+        ["movieId", "title", "genres", "bayesian_avg", "similarity_score"]
+    ]
 
-    # Check for rating reference
-    rating_threshold = None
-    is_low_rating_query = (
-        re.search(
-            r"\b(?:low|poorly|worst|bad)\s+(?:rated|reviewed|acclaimed)\b",
-            prompt.lower(),
+
+def enhance_genre_diversity(recommendations, requested_genres, top_n=10):
+    """
+    Enhances genre diversity in the recommendations based on requested genres.
+    Ensures that recommendations cover as many of the requested genres as possible.
+    """
+    if len(requested_genres) <= 1:
+        return recommendations.head(top_n)
+
+    # Convert all genre names to lowercase for better matching
+    requested_genres_lower = [g.lower() for g in requested_genres]
+
+    # Calculate genre coverage score for each movie
+    def calculate_genre_coverage(movie_genres):
+        # Convert to lowercase for comparison
+        movie_genres_lower = [g.lower() for g in movie_genres]
+        # Count how many requested genres appear in this movie
+        matched_genres = sum(
+            1
+            for genre in requested_genres_lower
+            if any(genre in mg for mg in movie_genres_lower)
         )
-        is not None
+        # Normalize by the total requested genres
+        return matched_genres / len(requested_genres_lower)
+
+    # Add genre coverage score
+    recommendations["genre_coverage"] = recommendations["genres"].apply(
+        calculate_genre_coverage
     )
 
-    if rating_threshold:
-        logger.info(f"Detected rating threshold: {rating_threshold}")
-    elif is_low_rating_query:
-        logger.info("Detected request for low rated movies")
+    # Blend the original score with genre coverage for re-ranking
+    # Give more weight to genre coverage for multi-genre queries
+    w_original = 0.6
+    w_genre_coverage = 0.4
+
+    recommendations["diversity_score"] = (
+        recommendations["final_score"] * w_original
+        + recommendations["genre_coverage"] * w_genre_coverage
+    )
+
+    # Create a diverse set that prioritizes genre coverage
+    # First get a base set of recommendations with high genre coverage
+    high_coverage = recommendations.sort_values(
+        by="genre_coverage", ascending=False
+    ).head(min(top_n, len(recommendations)))
+
+    # Then get remaining recommendations based on blended score
+    remaining = top_n - len(high_coverage)
+    if remaining > 0:
+        # Exclude movies already selected
+        remaining_recs = recommendations[
+            ~recommendations["movieId"].isin(high_coverage["movieId"])
+        ]
+        # Sort by diversity score
+        remaining_recs = remaining_recs.sort_values(
+            by="diversity_score", ascending=False
+        ).head(remaining)
+        # Combine the sets
+        diverse_recommendations = pd.concat([high_coverage, remaining_recs])
+    else:
+        diverse_recommendations = high_coverage
+
+    # Sort final set by diversity score
+    return diverse_recommendations.sort_values(
+        by="diversity_score", ascending=False
+    ).head(top_n)
+
+
+def get_keyword_recommendations(
+    prompt: str,
+    top_n=10,
+    date_filter_range=None,
+    is_low_rating_query=False,
+    features=None,
+):
+    """Generates recommendations based on keyword/TF-IDF matching."""
+    logger.info(f"--- Inside Keyword Recommender --- V_UPDATED")
+    logger.info(f"Received prompt: {prompt}, top_n: {top_n}")
+
+    # Use pre-extracted features if provided
+    if features is None:
+        features = extract_features(prompt)
+        logger.info(f"Extracted Features (within keyword recommender): {features}")
+    else:
+        logger.info("Using pre-extracted features.")
+
+    # Date and rating filters are passed in, no need to re-calculate here unless not passed
+    if date_filter_range:
+        logger.info(f"Applying date filter: {date_filter_range}")
+    if is_low_rating_query:
+        logger.info("Applying low rating filter.")
 
     if not features["processed_text"]:
         logger.warning(
             "No relevant features extracted. Returning top rated movies based on Bayesian Average."
         )
-        # Return top N based on precalculated Bayesian average
+        # Base query for top rated movies
         if is_low_rating_query:
-            # For low rated movies, sort in ascending order
-            top_rated = movies_tfidf_df.nsmallest(top_n * 2, "bayesian_avg")[
-                ["movieId", "title", "genres", "bayesian_avg"]
-            ].copy()
+            base_query = movies_tfidf_df.sort_values("bayesian_avg", ascending=True)
         else:
-            top_rated = movies_tfidf_df.nlargest(top_n * 2, "bayesian_avg")[
-                ["movieId", "title", "genres", "bayesian_avg"]
-            ].copy()
+            base_query = movies_tfidf_df.sort_values("bayesian_avg", ascending=False)
 
         # Apply date filter if specified
         if date_filter_range:
+            start_year, end_year = date_filter_range
             # Extract year from title (assuming format includes year in parentheses)
-            top_rated["year"] = (
-                top_rated["title"].str.extract(r"\((\d{4})\)").astype("float")
+            # Handle potential errors during extraction/conversion
+            base_query["year"] = base_query["title"].str.extract(
+                r"\((\d{4})\)", expand=False
             )
-            top_rated = top_rated[
-                (top_rated["year"] >= date_filter_range[0])
-                & (top_rated["year"] <= date_filter_range[1])
+            base_query["year"] = pd.to_numeric(base_query["year"], errors="coerce")
+            base_query = base_query.dropna(
+                subset=["year"]
+            )  # Drop rows where year couldn't be extracted
+            base_query["year"] = base_query["year"].astype(int)
+
+            base_query = base_query[
+                (base_query["year"] >= start_year) & (base_query["year"] <= end_year)
             ]
 
-            # If filtering resulted in too few movies, get more from the original set
-            if len(top_rated) < top_n:
-                remaining = top_n - len(top_rated)
-                if is_low_rating_query:
-                    more_movies = movies_tfidf_df.nsmallest(top_n * 5, "bayesian_avg")[
-                        ["movieId", "title", "genres", "bayesian_avg"]
-                    ].copy()
-                else:
-                    more_movies = movies_tfidf_df.nlargest(top_n * 5, "bayesian_avg")[
-                        ["movieId", "title", "genres", "bayesian_avg"]
-                    ].copy()
-                more_movies["year"] = (
-                    more_movies["title"].str.extract(r"\((\d{4})\)").astype("float")
-                )
-                more_movies = more_movies[
-                    (more_movies["year"] >= date_filter_range[0])
-                    & (more_movies["year"] <= date_filter_range[1])
-                ]
-                more_movies = more_movies[
-                    ~more_movies["movieId"].isin(top_rated["movieId"])
-                ]
-                top_rated = pd.concat([top_rated, more_movies.head(remaining)])
+        top_rated = base_query.head(top_n)[
+            ["movieId", "title", "genres", "bayesian_avg"]
+        ].copy()
 
-        top_rated["genres"] = top_rated["genres"].apply(lambda x: x.split("|"))
-        top_rated = top_rated.head(top_n)  # Ensure we only return top_n
+        top_rated["genres"] = top_rated["genres"].apply(
+            lambda x: x.split("|") if isinstance(x, str) else []
+        )
         return top_rated.assign(
-            similarity_score=0.0
+            similarity_score=0.0, final_score=0.0
         )  # Assign 0 similarity for this case
 
-    # Get improved prompt vector with weighted keywords
-    processed_text = features["processed_text"]
-
-    # Add more weight to named entities, especially PERSON, by repeating them
-    for entity in features["entities"]:
-        # Check if this is a named entity we want to emphasize
-        for ent in nlp(entity).ents:
-            if ent.label_ in ["PERSON", "WORK_OF_ART", "ORG"]:
-                # Add the entity multiple times to increase its weight in TF-IDF
-                processed_text = f"{processed_text} {entity} {entity} {entity}"
-
-    # Transform the enhanced prompt
-    prompt_vector = tfidf_vectorizer.transform([processed_text])
+    prompt_vector = tfidf_vectorizer.transform([features["processed_text"]])
     similarities = cosine_similarity(prompt_vector, tfidf_feature_matrix).flatten()
 
-    # Get top matches based purely on similarity (get more than needed for filtering)
-    filter_multiplier = 2  # Always get more for better candidate pool
-    if date_filter_range:
-        filter_multiplier *= 3  # Get 3x more results to allow for filtering
-    if rating_threshold or is_low_rating_query:
-        filter_multiplier *= 2  # Get 2x more results to allow for rating filtering
+    # Create a DataFrame with similarities and movie data
+    similarity_df = pd.DataFrame(
+        {
+            "movieId": movies_tfidf_df["movieId"],
+            "title": movies_tfidf_df["title"],
+            "genres": movies_tfidf_df["genres"],
+            "bayesian_avg": movies_tfidf_df["bayesian_avg"],
+            "similarity_score": similarities,
+        }
+    )
 
-    # Get more candidates for better diversity
-    candidate_indices = np.argsort(similarities)[::-1][: top_n * filter_multiplier]
+    # --- Add Rating Normalization and Final Score Calculation ---
+    w_sim = 0.7
+    w_rating = 0.3
+    max_rating = 5.0  # Assuming 0-5 scale
 
-    # Get the corresponding movie data
-    top_recommendations = movies_tfidf_df.iloc[candidate_indices].copy()
-    top_recommendations["similarity_score"] = similarities[candidate_indices]
+    # Convert bayesian_avg to numeric, handle errors, fill NaNs
+    similarity_df["bayesian_avg_numeric"] = pd.to_numeric(
+        similarity_df["bayesian_avg"], errors="coerce"
+    )
+    mean_rating = similarity_df["bayesian_avg_numeric"].mean()
+    similarity_df["bayesian_avg_numeric"] = similarity_df[
+        "bayesian_avg_numeric"
+    ].fillna(mean_rating if not pd.isna(mean_rating) else max_rating / 2)
+
+    # Normalize rating
+    similarity_df["normalized_rating"] = (
+        similarity_df["bayesian_avg_numeric"] / max_rating
+    ).clip(0, 1)
+
+    # Calculate final score
+    similarity_df["final_score"] = (similarity_df["similarity_score"] * w_sim) + (
+        similarity_df["normalized_rating"] * w_rating
+    )
+    # ----------------------------------------------------------
+
+    # Calculate genre diversity score if multiple genres were requested
+    if "requested_genres" in features and len(features["requested_genres"]) > 1:
+        # Convert genres strings to lists first
+        similarity_df["genres_list"] = similarity_df["genres"].apply(
+            lambda x: x.split("|") if isinstance(x, str) else []
+        )
+
+        # Calculate genre match score - how many of the requested genres are in the movie
+        requested_genres_lower = [g.lower() for g in features["requested_genres"]]
+
+        def calc_genre_match(genres_list):
+            genres_lower = [g.lower() for g in genres_list]
+            matched = sum(
+                1 for rg in requested_genres_lower if any(rg in g for g in genres_lower)
+            )
+            # Normalize by the total requested genres
+            return matched / len(requested_genres_lower)
+
+        similarity_df["genre_match_score"] = similarity_df["genres_list"].apply(
+            calc_genre_match
+        )
+
+        # Incorporate genre match into final score
+        similarity_df["final_score"] = (similarity_df["final_score"] * 0.7) + (
+            similarity_df["genre_match_score"] * 0.3
+        )
+
+        # Clean up temporary column
+        similarity_df = similarity_df.drop(columns=["genres_list"])
 
     # Apply date filter if specified
     if date_filter_range:
         start_year, end_year = date_filter_range
-        # Extract year from title (assuming format includes year in parentheses)
-        top_recommendations["year"] = (
-            top_recommendations["title"].str.extract(r"\((\d{4})\)").astype("float")
+        # Extract year from title
+        similarity_df["year"] = similarity_df["title"].str.extract(
+            r"\((\d{4})\)", expand=False
         )
-        # Filter by year range
-        top_recommendations = top_recommendations[
-            (top_recommendations["year"] >= start_year)
-            & (top_recommendations["year"] <= end_year)
+        similarity_df["year"] = pd.to_numeric(similarity_df["year"], errors="coerce")
+        similarity_df = similarity_df.dropna(subset=["year"])
+        similarity_df["year"] = similarity_df["year"].astype(int)
+
+        similarity_df = similarity_df[
+            (similarity_df["year"] >= start_year) & (similarity_df["year"] <= end_year)
         ]
+        if "year" in similarity_df.columns:
+            similarity_df = similarity_df.drop(columns=["year"], errors="ignore")
 
-    # Apply rating filter if specified
-    if rating_threshold:
-        # Filter for movies with ratings at or above the threshold
-        top_recommendations = top_recommendations[
-            top_recommendations["bayesian_avg"] >= rating_threshold
-        ]
-    elif is_low_rating_query:
-        # For low rated movies, prioritize movies with lower ratings
-        # Updated threshold: use relative ranking rather than absolute threshold
-        median_rating = movies_tfidf_df["bayesian_avg"].median()
-        top_recommendations = top_recommendations[
-            top_recommendations["bayesian_avg"] < median_rating
-        ]
-        # Sort by rating ascending (worst first)
-        top_recommendations = top_recommendations.sort_values(
-            by=["similarity_score", "bayesian_avg"], ascending=[False, True]
+    # Apply rating filter if specified (only for low rating query)
+    if is_low_rating_query:
+        # Filter for movies with low ratings
+        similarity_df = similarity_df[similarity_df["bayesian_avg_numeric"] < 1.5]
+
+    # Sort based on query type using the new final_score
+    if is_low_rating_query:
+        # Sort by final_score descending (still want relevant low-rated), then rating ascending (worst first)
+        top_recommendations = similarity_df.sort_values(
+            by=["final_score", "bayesian_avg_numeric"], ascending=[False, True]
+        )
+    else:
+        # Default: Sort by final_score descending
+        top_recommendations = similarity_df.sort_values(
+            by="final_score", ascending=False
         )
 
-    # Create a composite score that balances similarity and rating
-    if not is_low_rating_query:
-        # Normalize ratings to 0-1 range for better combining with similarity scores
-        min_rating = movies_tfidf_df["bayesian_avg"].min()
-        max_rating = movies_tfidf_df["bayesian_avg"].max()
-        rating_range = max_rating - min_rating
-
-        # Calculate normalized rating
-        top_recommendations["norm_rating"] = (
-            top_recommendations["bayesian_avg"] - min_rating
-        ) / rating_range
-
-        # Calculate composite score with adjusted weights
-        top_recommendations["composite_score"] = (
-            top_recommendations["similarity_score"]
-            * 0.8  # Increased weight for similarity
-            + top_recommendations["norm_rating"] * 0.2  # Decreased weight for rating
-        )
-
-        # Sort by composite score
-        top_recommendations = top_recommendations.sort_values(
-            by="composite_score", ascending=False
-        )
-
-        # Clean up temporary columns
-        top_recommendations = top_recommendations.drop(
-            columns=["norm_rating", "composite_score"]
-        )
-
-    # Keep only top_n after all filtering
+    # Keep only top_n after all filtering and sorting
     top_recommendations = top_recommendations.head(top_n)
 
     # Convert genres string to list
     top_recommendations["genres"] = top_recommendations["genres"].apply(
-        lambda x: x.split("|")
+        lambda x: x.split("|") if isinstance(x, str) else []
     )
 
     logger.info(
-        f"Returning {len(top_recommendations)} recommendations based on similarity."
+        f"Returning {len(top_recommendations)} recommendations based on combined score."
     )
 
-    # Return columns matching the original snippet's output structure
+    # Return relevant columns, including final_score if needed, or just the original required ones
+    # Let's keep the output schema consistent for now
     return top_recommendations[
-        ["movieId", "title", "genres", "bayesian_avg", "similarity_score"]
+        [
+            "movieId",
+            "title",
+            "genres",
+            "bayesian_avg",
+            "similarity_score",
+            "final_score",
+        ]
     ]

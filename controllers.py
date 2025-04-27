@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import traceback
@@ -10,7 +11,7 @@ from google.genai import types
 from schemas import LLMQuery, RecommendationQuery
 from data_processing import movies_llm_df, get_embeddings_matrix
 from models import gemini_client, embed_model
-from recommenders import get_keyword_recommendations, get_enhanced_recommendations
+from recommenders import get_enhanced_recommendations
 import pandas as pd  # Add pandas import
 import os  # Add os import
 
@@ -223,25 +224,59 @@ courtroom drama|twist ending
 
 
 def handle_recommendation_request(query: RecommendationQuery):
-    """Handles the logic for generating keyword-based recommendations."""
-    try:
-        recommendations = get_enhanced_recommendations(query.prompt, top_n=query.top_n)
+    """Handles the logic for generating keyword-based recommendations.
 
-        # Convert recommendations to a list of dictionaries for response
+    This function now directly calls the enhanced recommendation logic,
+    which handles various query types (genre, year, keywords, title)
+    through combined scoring.
+    """
+    try:
+        logger.info(f"Handling standard recommendation request for: {query.prompt}")
+
+        # Directly call the enhanced recommendation function
+        # It internally handles feature extraction and combined scoring
+        recommendations_df = get_enhanced_recommendations(
+            query.prompt, top_n=query.top_n
+        )
+
+        # Convert recommendations DataFrame to a list of dictionaries for response
         formatted_recommendations = []
-        for _, row in recommendations.iterrows():
-            formatted_recommendations.append(
-                {
-                    "movieId": int(row["movieId"]),
-                    "title": row["title"],
-                    "genres": row["genres"],
-                    "similarity_score": float(row["similarity_score"]),
-                }
-            )
+        # Check if DataFrame is not None and not empty before iterating
+        if recommendations_df is not None and not recommendations_df.empty:
+            for _, row in recommendations_df.iterrows():
+                # Ensure required columns exist and handle potential missing values
+                movie_id = int(row["movieId"]) if pd.notna(row.get("movieId")) else None
+                title = row.get("title", "Unknown Title")
+                genres = row.get("genres", [])
+                similarity_score = (
+                    float(row["similarity_score"])
+                    if pd.notna(row.get("similarity_score"))
+                    else 0.0
+                )
+
+                # Ensure genres is a list
+                if not isinstance(genres, list):
+                    genres = []
+
+                if movie_id is not None:
+                    formatted_recommendations.append(
+                        {
+                            "movieId": movie_id,
+                            "title": title,
+                            "genres": genres,
+                            "similarity_score": similarity_score,
+                        }
+                    )
+        else:
+            logger.warning(f"No recommendations generated for prompt: {query.prompt}")
 
         return {"query": query.prompt, "recommendations": formatted_recommendations}
+
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception(
+            f"Error generating recommendations: {e}"
+        )  # Use logger.exception
+        # traceback.print.exc() # logger.exception includes traceback
         raise HTTPException(
             status_code=500, detail=f"Error generating recommendations: {str(e)}"
         )
