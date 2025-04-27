@@ -57,7 +57,7 @@ def generate_llm_recommendations(query: LLMQuery):
         prompt = f"""
 User input: {query.user_input}
 
-Please recommend the {query.top_n} most relevant movies from along with their genres and tags only included in the movielens dataset (small). The response should be in the following format and don't include any extra information:
+Please recommend the {query.top_n} most relevant movies from along with their genres and tags only included in the movielens latest dataset (small). The response should be in the following format and don't include any extra information:
 
 Movie Title
 Genres
